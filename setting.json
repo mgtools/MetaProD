@@ -1,0 +1,18 @@
+[
+{
+  "model": "projects.setting",
+  "pk": "example",
+  "fields": {
+    "install_folder": "/metaprod/install",
+    "memory": "48G",
+    "searchgui_ver": "4.1.16",
+    "peptideshaker_ver": "2.2.9",
+    "reporter_ver": "0.9.8",
+    "threads": -1,
+    "debug_mode": true,
+    "data_folder": "/metaprod/data",
+    "max_retries": 1,
+    "default": true
+  }
+}
+]

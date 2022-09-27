@@ -1,0 +1,22 @@
+[
+{
+  "model": "projects.enzymechoice",
+  "pk": 16,
+  "fields": {
+    "enzyme": "Trypsin",
+    "searchsetting": "example",
+    "specificity": 0,
+    "mc": 2
+  }
+},
+{
+  "model": "projects.enzymechoice",
+  "pk": 17,
+  "fields": {
+    "enzyme": "Trypsin",
+    "searchsetting": "example2",
+    "specificity": 0,
+    "mc": 2
+  }
+}
+]

@@ -1,0 +1,178 @@
+{% extends "website/header.html" %}
+{% load render_table from django_tables2 %}
+{% load export_url from django_tables2 %}
+{% load crispy_forms_tags %}
+{% load spurl %}
+{% block title %}Summary Information{% endblock %}
+{% block content %}
+<h4>Project Runtime</h4>
+<div class="table-container">
+<table class="table table-hover">
+<thead>
+<th>ThermoRawFileParser</th>
+<th>SearchGUI</th>
+<th>PeptideShaker</th>
+<th>Reporter</th>
+<th>Read Results</th>
+<th>Process Results</th>
+</thead>
+<tbody>
+<tr>
+<td>{{ runtimes.trfp }}</td>
+<td>{{ runtimes.sgui }}</td>
+<td>{{ runtimes.peps }}</td>
+<td>{{ runtimes.repo }}</td>
+<td>{{ runtimes.rere }}</td>
+<td>{{ runtimes.prre }}</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h4>Summary Information Per File</h4>
+<hr>
+<h5>Counts for Profile</h5>
+<div class="table-container">
+<table class="table table-hover">
+<thead>
+<tr>
+<th>Filename</th>
+<th># Proteins</th>
+<th># Peptides</th>
+<th># PSM</th>
+</tr>
+</thead>
+<tbody>
+{% for key, value in profile_dict.items %}
+<tr>
+<td><a href="{% spurl base="{\% url 'file_summary' %\}" add_query="project={{ value.project }}" add_query="file={{ key }}" add_query="type=profile" %}">{{ value.filename }}</a></td>
+<td><a href="{% spurl base="{\% url 'protein_list' %\}" add_query="project={{ value.project }}" add_query="file={{ key }}" add_query="type=profile" add_query="sort=-nsaf" %}">{{ value.protein }}</a></td>
+<td><a href="{% spurl base="{\% url 'peptide_list' %\}" add_query="project={{ value.project }}" add_query="file={{ key }}" add_query="type=profile" add_query="sort=-val_num_psm" %}">{{ value.peptide }}</a></td>
+<td><a href="{% spurl base="{\% url 'psm_list' %\}" add_query="project={{ value.project }}" add_query="file={{ key }}" add_query="type=profile" add_query="sort=peptide__protein__fp__accession" %}">{{ value.psm }}</a></td>
+</tr>
+{% endfor %}
+<tr>
+<td>Totals</td>
+<td>{{ totals.pro_prof }}</td>
+<td>{{ totals.pep_prof }}</td>
+<td>{{ totals.psm_prof }}</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h5>Counts for Proteome</h5>
+<div class="table-container">
+<table class="table table-hover">
+<thead>
+<tr>
+<th>Filename</th>
+<th># Proteins</th>
+<th># Peptides</th>
+<th># PSM</th>
+</tr>
+</thead>
+<tbody>
+{% for key, value in proteome_dict.items %}
+<tr>
+<td><a href="{% spurl base="{\% url 'file_summary' %\}" add_query="project={{ value.project }}" add_query="file={{ key }}" add_query="type=proteome" %}">{{ value.filename }}</a></td>
+<td><a href="{% spurl base="{\% url 'protein_list' %\}" add_query="project={{ value.project }}" add_query="file={{ key }}" add_query="type=proteome" add_query="sort=-nsaf" %}">{{ value.protein }}</a></td>
+<td><a href="{% spurl base="{\% url 'peptide_list' %\}" add_query="project={{ value.project }}" add_query="file={{ key }}" add_query="type=proteome" add_query="sort=-val_num_psm" %}">{{ value.peptide }}</a></td>
+<td><a href="{% spurl base="{\% url 'psm_list' %\}" add_query="project={{ value.project }}" add_query="file={{ key }}" add_query="type=proteome" add_query="sort=peptide__protein__fp__accession" %}">{{ value.psm }}</a></td>
+</tr>
+{% endfor %}
+<tr>
+<td>Totals</td>
+<td>{{ totals.pro_prot }}</td>
+<td>{{ totals.pep_prot }}</td>
+<td>{{ totals.psm_prot }}</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h4>Overall Summary for Entire Project</h4>
+<hr>
+<h5>Top 10 Species by NSAF for Profile</h5>
+<div class="table-container">
+<table class="table table-hover">
+<thead>
+<tr>
+<th>Proteome</th>
+<th>Organism</th>
+<th>NSAF</th>
+</tr>
+</thead>
+<tbody>
+{% for species in top_x_ppid_nsaf_profile %}
+<tr>
+<td><a href="http://www.uniprot.org/proteomes/{{ species.fp__ppid__proteome }}">{{ species.fp__ppid__proteome }}</a></td>
+<td>{{ species.fp__ppid__organism }}</td>
+<td>{{ species.total }}</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+<h5>Top 10 Species by PSM for Profile</h5>
+<div class="table-container">
+<table class="table table-hover">
+<thead>
+<tr>
+<th>Proteome</th>
+<th>Organism</th>
+<th># PSM</th>
+</tr>
+</thead>
+<tbody>
+{% for species in top_x_ppid_psm_profile %}
+<tr>
+<td><a href="http://www.uniprot.org/proteomes/{{ species.fp__ppid__proteome }}">{{ species.fp__ppid__proteome }}</a></td>
+<td>{{ species.fp__ppid__organism }}</td>
+<td>{{ species.total }}</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+<h5>Top 10 Species by NSAF for Proteome</h5>
+<div class="table-container">
+<table class="table table-hover">
+<thead>
+<tr>
+<th>Proteome</th>
+<th>Organism</th>
+<th>NSAF</th>
+</tr>
+</thead>
+<tbody>
+{% for species in top_x_ppid_nsaf_proteome %}
+<tr>
+<td><a href="http://www.uniprot.org/proteomes/{{ species.fp__ppid__proteome }}">{{ species.fp__ppid__proteome }}</a></td>
+<td>{{ species.fp__ppid__organism }}</td>
+<td>{{ species.total }}</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+
+<h5>Top 10 Species by PSM for Proteome</h5>
+<div class="table-container">
+<table class="table table-hover">
+<thead>
+<tr>
+<th>Proteome</th>
+<th>Organism</th>
+<th># PSM</th>
+</tr>
+</thead>
+<tbody>
+{% for species in top_x_ppid_psm_proteome %}
+<tr>
+<td><a href="http://www.uniprot.org/proteomes/{{ species.fp__ppid__proteome }}">{{ species.fp__ppid__proteome }}</a></td>
+<td>{{ species.fp__ppid__organism }}</td>
+<td>{{ species.total }}</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+{% endblock %}

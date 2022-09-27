@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# shortcut for python3 manage.py runscript run_queue --script-args project_name job
+# format is run_queue project_name job with job being optional
+
+if [ $# -eq 0 ]
+then
+	echo Format is: run_queue project_name job where job is optional.
+elif [ $# -eq 1 ]
+then
+	python3 manage.py runscript run_queue --script-args $1
+elif [ $# -ge 2 ]
+then
+	python3 manage.py runscript run_queue --script-args $1 $2
+else
+	echo Format is: run_queue project_name job where job is optional.
+fi

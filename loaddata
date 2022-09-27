@@ -1,0 +1,11 @@
+#!/bin/bash
+
+if [ $# -eq 0 ]
+then
+        echo Format is: loaddata filename
+elif [ $# -eq 1 ]
+then
+        python3 manage.py loaddata $1
+else
+        echo Format is: loaddata filename.json
+fi

@@ -1,0 +1,37 @@
+[
+{
+  "model": "projects.reagent",
+  "pk": "iTRAQ 4-plex",
+  "fields": {
+    "description": "iTRAQ 4-plex"
+  }
+},
+{
+  "model": "projects.reagent",
+  "pk": "iTRAQ 8-plex",
+  "fields": {
+    "description": "iTRAQ 8-plex"
+  }
+},
+{
+  "model": "projects.reagent",
+  "pk": "TMT 10-plex",
+  "fields": {
+    "description": "TMT 10-plex"
+  }
+},
+{
+  "model": "projects.reagent",
+  "pk": "TMT 11-plex",
+  "fields": {
+    "description": "TMT 11-plex"
+  }
+},
+{
+  "model": "projects.reagent",
+  "pk": "TMT 6-plex",
+  "fields": {
+    "description": "TMT 6-plex"
+  }
+}
+]

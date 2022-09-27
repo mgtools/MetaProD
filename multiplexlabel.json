@@ -1,0 +1,11 @@
+[
+{
+  "model": "projects.multiplexlabel",
+  "pk": 1,
+  "fields": {
+    "project": "example2",
+    "sample": 1,
+    "reagent": "TMT 10-plex"
+  }
+}
+]

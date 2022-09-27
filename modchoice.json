@@ -1,0 +1,56 @@
+[
+{
+  "model": "projects.modchoice",
+  "pk": 1,
+  "fields": {
+    "mod": "Carbamidomethylation of C",
+    "searchsetting": "example",
+    "modtype": "Fixed"
+  }
+},
+{
+  "model": "projects.modchoice",
+  "pk": 2,
+  "fields": {
+    "mod": "Oxidation of M",
+    "searchsetting": "example",
+    "modtype": "Variable"
+  }
+},
+{
+  "model": "projects.modchoice",
+  "pk": 3,
+  "fields": {
+    "mod": "TMT 10-plex of K",
+    "searchsetting": "example2",
+    "modtype": "Fixed"
+  }
+},
+{
+  "model": "projects.modchoice",
+  "pk": 4,
+  "fields": {
+    "mod": "TMT 10-plex of peptide N-term",
+    "searchsetting": "example2",
+    "modtype": "Fixed"
+  }
+},
+{
+  "model": "projects.modchoice",
+  "pk": 5,
+  "fields": {
+    "mod": "Carbamidomethylation of C",
+    "searchsetting": "example2",
+    "modtype": "Fixed"
+  }
+},
+{
+  "model": "projects.modchoice",
+  "pk": 6,
+  "fields": {
+    "mod": "Oxidation of M",
+    "searchsetting": "example2",
+    "modtype": "Variable"
+  }
+}
+]

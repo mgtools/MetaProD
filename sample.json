@@ -1,0 +1,11 @@
+[
+{
+  "model": "projects.sample",
+  "pk": 1,
+  "fields": {
+    "name": "17",
+    "project": "example2",
+    "description": "17CPTAC_CO"
+  }
+}
+]

@@ -1,0 +1,10 @@
+{% extends "website/header.html" %}
+{% load render_table from django_tables2 %}
+{% load export_url from django_tables2 %}
+{% load crispy_forms_tags %}
+{% block title %}Diff. Protein List{% endblock %}
+{% block content %}
+    {% crispy filter.form filter.form.helper %}
+    <a href="{% export_url "tsv" %}">Export TSV</a>
+    {% render_table table %}
+{% endblock %}

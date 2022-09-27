@@ -1,0 +1,14 @@
+#!/bin/bash
+
+# shortcut for python3 manage.py runscript check_status --script-args project_name
+# format is check_status project_name
+
+if [ $# -eq 0 ]
+then
+	echo Format is: check_status project_name
+elif [ $# -eq 1 ]
+then
+	python3 manage.py runscript check_status --script-args $1
+else
+	echo Format is: check_status project_name
+fi

@@ -1,0 +1,20 @@
+#!/bin/bash
+
+if [ $# -eq 0 ]
+then
+	echo Format is: dumpdata filename
+elif [ $# -eq 1 ]
+then
+	if [[ $1 =~ \.json$ ]]; then
+                if [[ -f $1 ]]; then
+			echo "Removing existing file."
+                        rm $1
+                fi
+                python3 manage.py dumpdata --natural-foreign --natural-primary -e contenttypes -e auth -e sessions -e admin --indent 2 -o $1 -v 2
+
+	else
+		echo "File needs to end in .json"
+	fi
+else
+	echo Format is: dumpdata filename.json
+fi

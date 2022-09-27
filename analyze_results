@@ -1,0 +1,14 @@
+#!/bin/bash
+
+# shortcut for python3 manage.py runscript analyze_results --script-args project_name
+# format is analyze_results project_name
+
+if [ $# -eq 0 ]
+then
+        echo Format is: analyze_results project_name.
+elif [ $# -eq 1 ]
+then
+        python3 manage.py runscript analyze_results --script-args $1
+else
+        echo Format is: analyze_results project_name
+fi

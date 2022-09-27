@@ -1,0 +1,23 @@
+[
+{
+  "model": "projects.phenotype",
+  "pk": "Control",
+  "fields": {
+    "description": "Do not change."
+  }
+},
+{
+  "model": "projects.phenotype",
+  "pk": "Reference",
+  "fields": {
+    "description": "Do not change."
+  }
+},
+{
+  "model": "projects.phenotype",
+  "pk": "Treatment",
+  "fields": {
+    "description": "Do not change."
+  }
+}
+]

@@ -1,0 +1,16 @@
+[
+{
+  "model": "projects.project",
+  "pk": "example",
+  "fields": {
+    "description": "example label-free"
+  }
+},
+{
+  "model": "projects.project",
+  "pk": "example2",
+  "fields": {
+    "description": "example isobaric"
+  }
+}
+]

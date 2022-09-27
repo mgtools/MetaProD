@@ -1,0 +1,14 @@
+#!/bin/bash
+
+# shortcut for python3 manage.py runscript generate_fasta --script-args project_name profile
+# format is generate_fasta project_name
+
+if [ $# -eq 0 ]
+then
+        echo Format is: generate_fasta project_name.
+elif [ $# -eq 1 ]
+then
+	python3 manage.py runscript generate_fasta --script-args $1 profile
+else
+        echo Format is: generate_fasta project_name.
+fi

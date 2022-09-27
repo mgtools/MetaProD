@@ -1,0 +1,102 @@
+[
+{
+  "model": "projects.labelchoice",
+  "pk": 1,
+  "fields": {
+    "multiplexlabel": 1,
+    "label": 1,
+    "phenotype": "Control",
+    "identifier": "06CO002 Solid Tissue Normal"
+  }
+},
+{
+  "model": "projects.labelchoice",
+  "pk": 2,
+  "fields": {
+    "multiplexlabel": 1,
+    "label": 2,
+    "phenotype": "Treatment",
+    "identifier": "14CO005 Primary Tumor"
+  }
+},
+{
+  "model": "projects.labelchoice",
+  "pk": 3,
+  "fields": {
+    "multiplexlabel": 1,
+    "label": 3,
+    "phenotype": "Control",
+    "identifier": "01CO005 Solid Tissue Normal"
+  }
+},
+{
+  "model": "projects.labelchoice",
+  "pk": 4,
+  "fields": {
+    "multiplexlabel": 1,
+    "label": 4,
+    "phenotype": "Control",
+    "identifier": "11CO043 Solid Tissue Normal"
+  }
+},
+{
+  "model": "projects.labelchoice",
+  "pk": 5,
+  "fields": {
+    "multiplexlabel": 1,
+    "label": 5,
+    "phenotype": "Control",
+    "identifier": "11CO060 Solid Tissue Normal"
+  }
+},
+{
+  "model": "projects.labelchoice",
+  "pk": 6,
+  "fields": {
+    "multiplexlabel": 1,
+    "label": 6,
+    "phenotype": "Control",
+    "identifier": "05CO002 Solid Tissue Normal"
+  }
+},
+{
+  "model": "projects.labelchoice",
+  "pk": 7,
+  "fields": {
+    "multiplexlabel": 1,
+    "label": 7,
+    "phenotype": "Treatment",
+    "identifier": "09CO013 Primary Tumor"
+  }
+},
+{
+  "model": "projects.labelchoice",
+  "pk": 8,
+  "fields": {
+    "multiplexlabel": 1,
+    "label": 8,
+    "phenotype": "Treatment",
+    "identifier": "11CO057 Primary Tumor"
+  }
+},
+{
+  "model": "projects.labelchoice",
+  "pk": 9,
+  "fields": {
+    "multiplexlabel": 1,
+    "label": 9,
+    "phenotype": "Treatment",
+    "identifier": "01CO006 Primary Tumor"
+  }
+},
+{
+  "model": "projects.labelchoice",
+  "pk": 10,
+  "fields": {
+    "multiplexlabel": 1,
+    "label": 10,
+    "phenotype": "Reference",
+    "identifier": "ColonRef Not Reported"
+  }
+}
+]

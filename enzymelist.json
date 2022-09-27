@@ -1,0 +1,72 @@
+[
+{
+  "model": "projects.enzymelist",
+  "pk": "Arg-C",
+  "fields": {
+    "description": "Arg-C"
+  }
+},
+{
+  "model": "projects.enzymelist",
+  "pk": "Arg-N",
+  "fields": {
+    "description": "Arg-N"
+  }
+},
+{
+  "model": "projects.enzymelist",
+  "pk": "Asp-N",
+  "fields": {
+    "description": "Asp-N"
+  }
+},
+{
+  "model": "projects.enzymelist",
+  "pk": "Chymotrypsin",
+  "fields": {
+    "description": "Chymotrypsin"
+  }
+},
+{
+  "model": "projects.enzymelist",
+  "pk": "Glu-C",
+  "fields": {
+    "description": "Glu-C"
+  }
+},
+{
+  "model": "projects.enzymelist",
+  "pk": "Lys-C",
+  "fields": {
+    "description": "Lys-C"
+  }
+},
+{
+  "model": "projects.enzymelist",
+  "pk": "LysargiNase",
+  "fields": {
+    "description": "LysargiNase"
+  }
+},
+{
+  "model": "projects.enzymelist",
+  "pk": "Pepsin A",
+  "fields": {
+    "description": "Pepsin A"
+  }
+},
+{
+  "model": "projects.enzymelist",
+  "pk": "Thermolysin",
+  "fields": {
+    "description": "Thermolysin"
+  }
+},
+{
+  "model": "projects.enzymelist",
+  "pk": "Trypsin",
+  "fields": {
+    "description": "Trypsin"
+  }
+}
+]

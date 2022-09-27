@@ -1,0 +1,38 @@
+{% extends "website/header.html" %}
+{% load render_table from django_tables2 %}
+{% load spurl %}
+{% block title %}Project List{% endblock %}
+{% block content %}
+<div class="table-container">
+<table class="table table-hover">
+<thead>
+<th>Project</th>
+<th>Description</th>
+<th>Summary</th>
+<th>Files</th>
+<th>Species</th>
+<th>Proteins</th>
+<th>Peptides</th>
+<th>PSMs</th>
+<th>Diff. Proteins</th>
+</thead>
+<tbody>
+{% for key, value in project_dict.items %}
+<tr>
+<td>{{ key }}</td>
+<td>{{ value.description }}</td>
+<td><a href="{% url 'summary' key %}">Link</a>
+<td><a href="{% spurl base="{\% url 'file_list' %\}" add_query="project={{ key }}" %}">Link</a></td>
+<td><a href="{% spurl base="{\% url 'species_list' %\}" add_query="project={{ key }}" %}">Link</a></td>
+<td><a href="{% spurl base="{\% url 'protein_list' %\}" add_query="project={{ key }}" %}">Link</a></td>
+<td><a href="{% spurl base="{\% url 'peptide_list' %\}" add_query="project={{ key }}" %}">Link</a></td>
+<td><a href="{% spurl base="{\% url 'psm_list' %\}" add_query="project={{ key }}" %}">Link</a></td>
+{% if value.multiplexed == True %}
+<td><a href="{% spurl base="{\% url 'diffprotein_list' %\}" add_query="project={{ key }}" add_query="d_p_value__lt=0.05" %}">Link</a></td>
+{% endif %}
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+{% endblock %}

@@ -1,0 +1,8 @@
+resources/mzidml-core.log
+**/__pycache__/*.pyc
+derby.log
+db.sqlite3
+runqueue
+metaprod/settings.py
+*.csv
+my_secrets

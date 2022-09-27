@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# shortcut for python3 manage.py runscript update_queue --script-args project_name type
+# format is update_queue project_name type where type is profile, proteome, or final
+
+if [ $# -eq 0 ]
+then
+        echo Format is: update_queue project_name jobs where jobs is optional.
+elif [ $# -eq 1 ]
+then
+	python3 manage.py runscript update_queue --script-args $1
+elif [ $# -ge 2 ]
+then
+        python3 manage.py runscript update_queue --script-args $1 $2
+else
+        echo Format is: update_queue project_name jobs where jobs is optional..
+fi

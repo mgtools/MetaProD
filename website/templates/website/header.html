@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% load static %}
+    <link rel="stylesheet" href={% static "website/stylesheet.css" %}>
+    <link rel="shortcut icon" href="{% static 'website/icon.png' %}"/>
+    <title>{% block title %}JCMS{% endblock %}</title>
+</head>
+<body>
+    <div id="header">
+        {% block header %}
+        {% with request.resolver_match.url_name as url_name %}
+        <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+            <ul class="navbar-nav mr-auto">
+                <li class="nav-item {% if url_name == 'index' %}active{% endif %}">
+                    <span class="mb-0 h4"><a class="nav-link" href={% url "index" %} title="Return Home">Home</a></span>
+                </li>
+                <li class="nav-item {% if url_name == 'admin:index' %}active{% endif %}">
+                    <span class="mb-0 h4"><a class="nav-link" href={% url "admin:index" %} title="Admin">Admin</a></span>
+                </li>                            
+                <li class="nav-item {% if url_name == 'project_list' %}active{% endif %}">
+                    <span class="mb-0 h4"><a class="nav-link" href={% url "project_list" %} title="Projects">Projects</a></span>
+                </li>
+                <li class="nav-item {% if url_name == 'help' %}active{% endif %}">
+                    <span class="mb-0 h4"><a class="nav-link" href={% url "help" %} title="Help">Help</a></span>
+                </li>             
+            </ul>
+        </nav>
+        {% endwith %}
+        {% endblock %}
+    </div>
+    
+    <div id="content">
+        {% block content %}{% endblock %}
+    </div>
+</body>
+</html>

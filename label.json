@@ -1,0 +1,353 @@
+[
+{
+  "model": "projects.label",
+  "pk": 1,
+  "fields": {
+    "reagent": "TMT 10-plex",
+    "name": "TMT_126",
+    "description": null
+  }
+},
+{
+  "model": "projects.label",
+  "pk": 2,
+  "fields": {
+    "reagent": "TMT 10-plex",
+    "name": "TMT_127N",
+    "description": null
+  }
+},
+{
+  "model": "projects.label",
+  "pk": 3,
+  "fields": {
+    "reagent": "TMT 10-plex",
+    "name": "TMT_127C",
+    "description": null
+  }
+},
+{
+  "model": "projects.label",
+  "pk": 4,
+  "fields": {
+    "reagent": "TMT 10-plex",
+    "name": "TMT_128N",
+    "description": null
+  }
+},
+{
+  "model": "projects.label",
+  "pk": 5,
+  "fields": {
+    "reagent": "TMT 10-plex",
+    "name": "TMT_128C",
+    "description": null
+  }
+},
+{
+  "model": "projects.label",
+  "pk": 6,
+  "fields": {
+    "reagent": "TMT 10-plex",
+    "name": "TMT_129N",
+    "description": null
+  }
+},
+{
+  "model": "projects.label",
+  "pk": 7,
+  "fields": {
+    "reagent": "TMT 10-plex",
+    "name": "TMT_129C",
+    "description": null
+  }
+},
+{
+  "model": "projects.label",
+  "pk": 8,
+  "fields": {
+    "reagent": "TMT 10-plex",
+    "name": "TMT_130N",
+    "description": null
+  }
+},
+{
+  "model": "projects.label",
+  "pk": 9,
+  "fields": {
+    "reagent": "TMT 10-plex",
+    "name": "TMT_130C",
+    "description": null
+  }
+},
+{
+  "model": "projects.label",
+  "pk": 10,
+  "fields": {
+    "reagent": "TMT 10-plex",
+    "name": "TMT_131",
+    "description": null
+  }
+},
+{
+  "model": "projects.label",
+  "pk": 11,
+  "fields": {
+    "reagent": "TMT 11-plex",
+    "name": "TMT_126",
+    "description": null
+  }
+},
+{
+  "model": "projects.label",
+  "pk": 12,
+  "fields": {
+    "reagent": "TMT 11-plex",
+    "name": "TMT_127N",
+    "description": null
+  }
+},
+{
+  "model": "projects.label",
+  "pk": 13,
+  "fields": {
+    "reagent": "TMT 11-plex",
+    "name": "TMT_127C",
+    "description": null
+  }
+},
+{
+  "model": "projects.label",
+  "pk": 14,
+  "fields": {
+    "reagent": "TMT 11-plex",
+    "name": "TMT_128N",
+    "description": null
+  }
+},
+{
+  "model": "projects.label",
+  "pk": 15,
+  "fields": {
+    "reagent": "TMT 11-plex",
+    "name": "TMT_128C",
+    "description": null
+  }
+},
+{
+  "model": "projects.label",
+  "pk": 16,
+  "fields": {
+    "reagent": "TMT 11-plex",
+    "name": "TMT_129N",
+    "description": null
+  }
+},
+{
+  "model": "projects.label",
+  "pk": 17,
+  "fields": {
+    "reagent": "TMT 11-plex",
+    "name": "TMT_129C",
+    "description": null
+  }
+},
+{
+  "model": "projects.label",
+  "pk": 18,
+  "fields": {
+    "reagent": "TMT 11-plex",
+    "name": "TMT_130N",
+    "description": null
+  }
+},
+{
+  "model": "projects.label",
+  "pk": 19,
+  "fields": {
+    "reagent": "TMT 11-plex",
+    "name": "TMT_130C",
+    "description": null
+  }
+},
+{
+  "model": "projects.label",
+  "pk": 20,
+  "fields": {
+    "reagent": "TMT 11-plex",
+    "name": "TMT_131",
+    "description": null
+  }
+},
+{
+  "model": "projects.label",
+  "pk": 21,
+  "fields": {
+    "reagent": "TMT 11-plex",
+    "name": "TMT_131C",
+    "description": null
+  }
+},
+{
+  "model": "projects.label",
+  "pk": 22,
+  "fields": {
+    "reagent": "TMT 6-plex",
+    "name": "TMT_126",
+    "description": null
+  }
+},
+{
+  "model": "projects.label",
+  "pk": 23,
+  "fields": {
+    "reagent": "TMT 6-plex",
+    "name": "TMT_127",
+    "description": null
+  }
+},
+{
+  "model": "projects.label",
+  "pk": 24,
+  "fields": {
+    "reagent": "TMT 6-plex",
+    "name": "TMT_128",
+    "description": null
+  }
+},
+{
+  "model": "projects.label",
+  "pk": 25,
+  "fields": {
+    "reagent": "TMT 6-plex",
+    "name": "TMT_129",
+    "description": null
+  }
+},
+{
+  "model": "projects.label",
+  "pk": 26,
+  "fields": {
+    "reagent": "TMT 6-plex",
+    "name": "TMT_130",
+    "description": null
+  }
+},
+{
+  "model": "projects.label",
+  "pk": 27,
+  "fields": {
+    "reagent": "TMT 6-plex",
+    "name": "TMT_131",
+    "description": null
+  }
+},
+{
+  "model": "projects.label",
+  "pk": 28,
+  "fields": {
+    "reagent": "iTRAQ 8-plex",
+    "name": "iTRAQ8Plex_113",
+    "description": null
+  }
+},
+{
+  "model": "projects.label",
+  "pk": 29,
+  "fields": {
+    "reagent": "iTRAQ 8-plex",
+    "name": "iTRAQ8Plex_114",
+    "description": null
+  }
+},
+{
+  "model": "projects.label",
+  "pk": 30,
+  "fields": {
+    "reagent": "iTRAQ 8-plex",
+    "name": "iTRAQ8Plex_115",
+    "description": null
+  }
+},
+{
+  "model": "projects.label",
+  "pk": 31,
+  "fields": {
+    "reagent": "iTRAQ 8-plex",
+    "name": "iTRAQ8Plex_116",
+    "description": null
+  }
+},
+{
+  "model": "projects.label",
+  "pk": 32,
+  "fields": {
+    "reagent": "iTRAQ 8-plex",
+    "name": "iTRAQ8Plex_117",
+    "description": null
+  }
+},
+{
+  "model": "projects.label",
+  "pk": 33,
+  "fields": {
+    "reagent": "iTRAQ 8-plex",
+    "name": "iTRAQ8Plex_118",
+    "description": null
+  }
+},
+{
+  "model": "projects.label",
+  "pk": 34,
+  "fields": {
+    "reagent": "iTRAQ 8-plex",
+    "name": "iTRAQ8Plex_119",
+    "description": null
+  }
+},
+{
+  "model": "projects.label",
+  "pk": 35,
+  "fields": {
+    "reagent": "iTRAQ 8-plex",
+    "name": "iTRAQ8Plex_121",
+    "description": null
+  }
+},
+{
+  "model": "projects.label",
+  "pk": 36,
+  "fields": {
+    "reagent": "iTRAQ 4-plex",
+    "name": "iTRAQ4Plex_114",
+    "description": null
+  }
+},
+{
+  "model": "projects.label",
+  "pk": 37,
+  "fields": {
+    "reagent": "iTRAQ 4-plex",
+    "name": "iTRAQ4Plex_115",
+    "description": null
+  }
+},
+{
+  "model": "projects.label",
+  "pk": 38,
+  "fields": {
+    "reagent": "iTRAQ 4-plex",
+    "name": "iTRAQ4Plex_116",
+    "description": null
+  }
+},
+{
+  "model": "projects.label",
+  "pk": 39,
+  "fields": {
+    "reagent": "iTRAQ 4-plex",
+    "name": "iTRAQ4Plex_117",
+    "description": null
+  }
+}
+]

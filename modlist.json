@@ -1,0 +1,86 @@
+[
+{
+  "model": "projects.modlist",
+  "pk": "Carbamidomethylation of C",
+  "fields": {
+    "description": "fixed"
+  }
+},
+{
+  "model": "projects.modlist",
+  "pk": "iTRAQ 4-plex of K",
+  "fields": {
+    "description": "fixed"
+  }
+},
+{
+  "model": "projects.modlist",
+  "pk": "iTRAQ 4-plex of peptide N-term",
+  "fields": {
+    "description": "fixed"
+  }
+},
+{
+  "model": "projects.modlist",
+  "pk": "iTRAQ 4-plex of Y",
+  "fields": {
+    "description": "fixed"
+  }
+},
+{
+  "model": "projects.modlist",
+  "pk": "iTRAQ 8-plex of K",
+  "fields": {
+    "description": "fixed"
+  }
+},
+{
+  "model": "projects.modlist",
+  "pk": "iTRAQ 8-plex of peptide N-term",
+  "fields": {
+    "description": "fixed"
+  }
+},
+{
+  "model": "projects.modlist",
+  "pk": "iTRAQ 8-plex of Y",
+  "fields": {
+    "description": "fixed"
+  }
+},
+{
+  "model": "projects.modlist",
+  "pk": "Oxidation of M",
+  "fields": {
+    "description": "variable"
+  }
+},
+{
+  "model": "projects.modlist",
+  "pk": "TMT 10-plex of K",
+  "fields": {
+    "description": "TMT10 of K, fixed"
+  }
+},
+{
+  "model": "projects.modlist",
+  "pk": "TMT 10-plex of peptide N-term",
+  "fields": {
+    "description": "TMT10 N-term, fixed"
+  }
+},
+{
+  "model": "projects.modlist",
+  "pk": "TMT 11-plex of K",
+  "fields": {
+    "description": "TMT-11, fixed"
+  }
+},
+{
+  "model": "projects.modlist",
+  "pk": "TMT 11-plex of peptide N-term",
+  "fields": {
+    "description": "TMT 11, fixed"
+  }
+}
+]

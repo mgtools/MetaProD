@@ -1,0 +1,53 @@
+[
+{
+  "model": "projects.queue",
+  "pk": 1,
+  "fields": {
+    "filename": "180228_StS_flowrate_Bd16_ctrl_rep1",
+    "sample": null,
+    "project": "example",
+    "date_added": "2022-09-14T23:35:14.312Z",
+    "date_finished_profile": null,
+    "date_finished_proteome": null,
+    "status": 0,
+    "error": 0,
+    "skip": false,
+    "job": 0,
+    "total_runtime": 0
+  }
+},
+{
+  "model": "projects.queue",
+  "pk": 3,
+  "fields": {
+    "filename": "17CPTAC_COprospective_W_PNNL_20170123_B5S1_f02",
+    "sample": 1,
+    "project": "example2",
+    "date_added": "2022-09-25T17:35:15.626Z",
+    "date_finished_profile": null,
+    "date_finished_proteome": null,
+    "status": 0,
+    "error": 0,
+    "skip": false,
+    "job": 0,
+    "total_runtime": 0
+  }
+},
+{
+  "model": "projects.queue",
+  "pk": 2,
+  "fields": {
+    "filename": "17CPTAC_COprospective_W_PNNL_20170123_B5S1_f01",
+    "sample": 1,
+    "project": "example2",
+    "date_added": "2022-09-25T17:35:15.631Z",
+    "date_finished_profile": null,
+    "date_finished_proteome": null,
+    "status": 0,
+    "error": 0,
+    "skip": false,
+    "job": 0,
+    "total_runtime": 0
+  }
+}
+]
