@@ -13,17 +13,17 @@ rm sample.json
 rm phenotype.json
 rm queue.json
 
-python3 manage.py dumpdata --indent=2 projects.searchsetting -o searchsetting.json
-python3 manage.py dumpdata --indent=2 projects.setting -o setting.json
-python3 manage.py dumpdata --indent=2 projects.modchoice -o modchoice.json
-python3 manage.py dumpdata --indent=2 projects.modlist -o modlist.json
-python3 manage.py dumpdata --indent=2 projects.project -o project.json
-python3 manage.py dumpdata --indent=2 projects.enzymechoice -o enzymechoice.json
-python3 manage.py dumpdata --indent=2 projects.enzymelist -o enzymelist.json
-python3 manage.py dumpdata --indent=2 projects.reagent -o reagent.json
-python3 manage.py dumpdata --indent=2 projects.label -o label.json
-python3 manage.py dumpdata --indent=2 projects.multiplexlabel -o multiplexlabel.json
-python3 manage.py dumpdata --indent=2 projects.labelchoice -o labelchoice.json
-python3 manage.py dumpdata --indent=2 projects.sample -o sample.json
-python3 manage.py dumpdata --indent=2 projects.phenotype -o phenotype.json
-python3 manage.py dumpdata --indent=2 projects.queue -o queue.json
+python3 manage.py dumpdata --indent=2 --natural-foreign --natural-primary projects.searchsetting -o searchsetting.json
+python3 manage.py dumpdata --indent=2 --natural-foreign --natural-primary projects.setting -o setting.json
+python3 manage.py dumpdata --indent=2 --natural-foreign --natural-primary projects.modchoice -o modchoice.json
+python3 manage.py dumpdata --indent=2 --natural-foreign --natural-primary projects.modlist -o modlist.json
+python3 manage.py dumpdata --indent=2 --natural-foreign --natural-primary projects.project -o project.json
+python3 manage.py dumpdata --indent=2 --natural-foreign --natural-primary projects.enzymechoice -o enzymechoice.json
+python3 manage.py dumpdata --indent=2 --natural-foreign --natural-primary projects.enzymelist -o enzymelist.json
+python3 manage.py dumpdata --indent=2 --natural-foreign --natural-primary projects.reagent -o reagent.json
+python3 manage.py dumpdata --indent=2 --natural-foreign --natural-primary projects.label -o label.json
+python3 manage.py dumpdata --indent=2 --natural-foreign --natural-primary projects.multiplexlabel -o multiplexlabel.json
+python3 manage.py dumpdata --indent=2 --natural-foreign --natural-primary projects.labelchoice -o labelchoice.json
+python3 manage.py dumpdata --indent=2 --natural-foreign --natural-primary projects.sample -o sample.json
+python3 manage.py dumpdata --indent=2 --natural-foreign --natural-primary projects.phenotype -o phenotype.json
+python3 manage.py dumpdata --indent=2 --natural-foreign --natural-primary projects.queue -o queue.json
