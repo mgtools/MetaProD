@@ -73,7 +73,7 @@ def run_msconvert(queue_id):
                                 "-o=%s" % os.path.join(settings.data_folder, project, "out", filename),
                                 #"-e", # ignore instrument errors
                                 #"-b=%s" % OUTPUT FILE,
-                                "-f=1", # format: 0 MGF, 1 mzml, 2 imzml
+                                "-f=2", # format: 0 MGF, 1 mzml, 2 imzml
                                 #"-g", # gzip
                                 #"-m=0", # meta data format
                                 #"-c=%s" % META_FILE,
