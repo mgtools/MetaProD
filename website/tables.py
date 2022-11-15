@@ -145,7 +145,7 @@ class PeptideListTable(Table):
     organism = Column(accessor='protein__fp__ppid__organism', 
                       verbose_name='Organism', visible=False)
     proteome = Column(accessor='protein__fp__ppid__proteome', 
-                      verbose_name='Organism', visible=False)
+                      verbose_name='Proteome', visible=False)
     class Meta:
         model = Peptide
         fields = ('proteome', 'organism', 'protein__fp__accession', 
