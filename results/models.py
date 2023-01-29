@@ -21,7 +21,8 @@ class Protein(models.Model):
     nsaf = models.DecimalField(null=True, max_digits=15, decimal_places=6)
     validation = models.CharField(max_length=20)
     type = models.CharField(max_length=20, choices=TYPE_CHOICES)
-
+    peak_area = models.DecimalField(null=True, max_digits=19, decimal_places=3)
+    peak_area_psm = models.IntegerField(null=True)
     class Meta:
         unique_together = ('queue', 'fp', 'type')
         
@@ -55,7 +56,9 @@ class Peptide(models.Model):
     val_num_psm = models.IntegerField()
     validation = models.CharField(max_length=20)
     type = models.CharField(max_length=20, choices=TYPE_CHOICES)
-
+    peak_area = models.DecimalField(null=True, max_digits=19, decimal_places=3)
+    # how many PSMs had a peak area as it may not be the same as val_num_psm
+    peak_area_psm = models.IntegerField(null=True)
     class Meta:
         unique_together = ('queue', 'mod_sequence', 'type')
         
@@ -89,6 +92,7 @@ class Psm(models.Model):
     confidence = models.DecimalField(max_digits=15, decimal_places=6)
     title = models.CharField(max_length=255)
     type = models.CharField(max_length=20, choices=TYPE_CHOICES)
+    peak_area = models.DecimalField(null=True, max_digits=19, decimal_places=3)
 
     def natural_key(self):
         return (self.type, self.title) + self.queue.natural_key()
@@ -137,6 +141,8 @@ class SpeciesSummary(models.Model):
     val_num_psm = models.DecimalField(max_digits=15, decimal_places=3)
     val_num_peptide = models.IntegerField()
     nsaf = models.DecimalField(max_digits=15, decimal_places=6)
+    peak_area = models.DecimalField(null=True, max_digits=19, decimal_places=3)
+    peak_area_psm = models.IntegerField(null=True)
     
     def natural_key(self):
         return(self.project, self.ppid, self.type)
@@ -153,6 +159,8 @@ class SpeciesFileSummary(models.Model):
     val_num_psm = models.DecimalField(max_digits=15, decimal_places=3)
     val_num_peptide = models.IntegerField()
     nsaf = models.DecimalField(max_digits=15, decimal_places=6)
+    peak_area = models.DecimalField(null=True, max_digits=19, decimal_places=3)
+    peak_area_psm = models.IntegerField(null=True)
     
     def natural_key(self):
         return(self.type, self.ppid) + self.queue.natural_key()

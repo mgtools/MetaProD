@@ -70,7 +70,7 @@ def generate_file_queue(project, jobs):
                     try:                
                         add_file_to_queue(os.path.join(settings.data_folder, 
                                             project, "raw", file), 
-                                            project, 0, job)
+                                            project, Queue.Status.FILE_ADDED, job)
                         if job < jobs - 1:
                             job += 1
                         else:
@@ -87,7 +87,7 @@ def generate_file_queue(project, jobs):
 
     # so we didn't add anything, now check for status 13
     # if this is true, everything is 13 or higher so run update_queue final
-    if Queue.objects.filter(project__name=project, skip=False).exclude(status__lt=13).exists():
+    if not Queue.objects.filter(project__name=project, skip=False).exclude(status=Queue.Status.FINISHED_PROT).exists():
         print("All files have finished the proteome step.")
         queue = (Queue.objects.filter(project__name=project))
         for c in queue:
@@ -111,7 +111,7 @@ def generate_file_queue(project, jobs):
         print("Finished update_queue final.")
         
     # if this is true, everything is 7 or higher but not 13 or higher
-    elif Queue.objects.filter(project__name=project, skip=False).exclude(status__lt=7).exists():
+    elif not Queue.objects.filter(project__name=project, skip=False).exclude(status=Queue.Status.FINISHED_PROF).exists():
         print("All files have finished the profile step.")
         queue = (Queue.objects.filter(project__name=project))
         for c in queue:
@@ -141,7 +141,7 @@ def generate_file_queue(project, jobs):
         queue = (Queue.objects.filter(project__name=project))
         for c in queue:
             if c.error >= 2:
-                print("Warning: %s has error status 2 and cannot be processed." % (c.filename))        
+                print("Warning: %s has error status 2 and cannot be processed." % (c.filename))
         
 def add_file_to_queue(filename, project, status, job):  
     # we only want the basename without path or raw

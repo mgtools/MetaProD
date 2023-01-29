@@ -135,7 +135,6 @@ def process_results(queue_id, type):
         top_protein = ""
         top_species_count = 0
         top_species = ""
-        # this doesn't break ties for now
         for accession in accessions:
             fp = FastaProtein.objects.get(accession=accession)
             ppid = fp.ppid.proteome
@@ -158,7 +157,9 @@ def process_results(queue_id, type):
                       'val_num_psm':entry.val_num_psm,
                       'validation': entry.validation,
                       'type':entry.type,
-                      'peptide_id':entry.id})
+                      'peptide_id':entry.id,
+                      'peak_area':entry.peak_area,
+                      'peak_area_psm':entry.peak_area_psm})
      
         rows_list.append(dict1)
     
@@ -175,7 +176,9 @@ def process_results(queue_id, type):
 
     #peptides.to_csv('peptides_list.csv')
 
-    proteins = peptides.groupby(peptides['accession']).aggregate({'val_num_psm':'sum'})
+    proteins = peptides.groupby(peptides['accession']).aggregate({'val_num_psm':'sum',
+                                                                  'peak_area':'sum',
+                                                                  'peak_area_psm':'sum'})
     # count how many get merged for peptides
     proteins['val_num_peptide'] = peptides.groupby(peptides['accession']).size()
     
@@ -187,12 +190,21 @@ def process_results(queue_id, type):
         accession = index
         fp = FastaProtein.objects.get(accession=accession)
         saf = Decimal(row['val_num_psm'] / fp.length)
+        if searchsetting.mzmine_run_mzmine == False:
+            peak_area = None
+            peak_area_psm = None
+        else:
+            peak_area = row['peak_area'],
+            peak_area_psm = row['peak_area_psm']
+            
         protein = Protein(queue=queue,
                           fp=fp,
                           val_num_psm=float(row['val_num_psm']),
                           val_num_peptide=row['val_num_peptide'],
                           saf=saf,
-                          type=type)
+                          type=type,
+                          peak_area=peak_area,
+                          peak_area_psm=peak_area_psm)
         protein.save()
     
     # update the proteininference link for the peptide now that we know what it is
@@ -277,7 +289,9 @@ def calculate_species_summary(project, type):
                             .annotate(total_psm=Sum('val_num_psm'), 
                                       total_pep=Sum('val_num_peptide'), 
                                       total_pro=Count('type'), 
-                                      nsaf=Sum('nsaf'))
+                                      nsaf=Sum('nsaf'),
+                                      peak_area=Sum('peak_area'),
+                                      peak_area_psm=Sum('peak_area_psm'))
                             .order_by('-total_psm'))
     for entry in query:
         project = Project.objects.get(name=project)
@@ -288,7 +302,9 @@ def calculate_species_summary(project, type):
                                  nsaf = Decimal(entry['nsaf']),
                                  val_num_protein=entry['total_pro'],
                                  val_num_peptide=entry['total_pep'],
-                                 val_num_psm=entry['total_psm'])
+                                 val_num_psm=entry['total_psm'],
+                                 peak_area=entry['peak_area'],
+                                 peak_area_psm=entry['peak_area_psm'])
         species.save()
 
 def calculate_species_file_summary(q_id, type):
@@ -303,7 +319,9 @@ def calculate_species_file_summary(q_id, type):
                             .annotate(total_psm=Sum('val_num_psm'), 
                                       total_pep=Sum('val_num_peptide'), 
                                       total_pro=Count('type'), 
-                                      nsaf=Sum('nsaf'))
+                                      nsaf=Sum('nsaf'),
+                                      peak_area=Sum('peak_area'),
+                                      peak_area_psm=Sum('peak_area_psm'))
                             .order_by('-total_psm'))
     for entry in query:
         proteome = Proteome.objects.get(proteome=entry['fp__ppid__proteome'])
@@ -313,5 +331,7 @@ def calculate_species_file_summary(q_id, type):
                                      nsaf = Decimal(entry['nsaf']),
                                      val_num_protein=entry['total_pro'],
                                      val_num_peptide=entry['total_pep'],
-                                     val_num_psm=entry['total_psm'])
+                                     val_num_psm=entry['total_psm'],
+                                     peak_area=entry['peak_area'],
+                                     peak_area_psm=entry['peak_area_psm'])
         species.save()    

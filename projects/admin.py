@@ -38,8 +38,8 @@ class RunTimeInline(admin.TabularInline):
     max_num = 0
     can_delete = False
     readonly_fields = ('msconvert','searchgui_profile','peptideshaker_profile',
-        'reporter_profile', 'read_results_profile', 'process_results_profile',
-        'searchgui_proteome', 'peptideshaker_proteome', 'reporter_proteome',
+        'reporter_profile', 'mzmine_profile', 'read_results_profile', 'process_results_profile',
+        'searchgui_proteome', 'peptideshaker_proteome', 'reporter_proteome', 'mzmine_proteome',
         'read_results_proteome', 'process_results_proteome')
   
 class ProjectListFilter(admin.SimpleListFilter):
@@ -121,28 +121,40 @@ class SearchSettingInline(admin.StackedInline):
     extra = 0
     max_num = 1
     fieldsets = (
-        (None, {
-            'fields': ('project', 
-                ('min_peptide_length', 'max_peptide_length'),
+        ('MetaProD', {
+            'classes': ('collapse in'),
+            'fields': ('project',
+                ('use_crap', 'use_human'),
+                ('profile_type', 'profile_threshold', 'profile_method'),
+                ('multiplex', 'run_deqms', 'mzmine_run_mzmine'),
+                ('imput_threshold')
+            ),
+            'description': 'MetaProD specific options',
+        }),    
+        ('SearchGUI/PeptideShaker', {
+            'classes': ('collapse', 'extrapretty'),
+            'fields': (('min_peptide_length', 'max_peptide_length'),
                 ('min_charge', 'max_charge'),
                 ('prec_tol', 'prec_ppm'),
                 ('frag_tol', 'frag_ppm'),
                 ('isotope_min', 'isotope_max'),
                 ('instrument', 'fragmentation'),
                 ('psm_fdr', 'peptide_fdr', 'protein_fdr'),
-                ('multiplex', 'run_deqms'),
-                ('use_crap', 'use_human'),
-                ('profile_type', 'profile_threshold'),
-
+                ('comet_profile', 'metamorpheus_profile', 'msgf_profile', 'myrimatch_profile', 'omssa_profile', 'xtandem_profile',),
+                ('comet_proteome', 'metamorpheus_proteome', 'msgf_proteome', 'myrimatch_proteome', 'omssa_proteome', 'xtandem_proteome',),
+            ),
+            'description': 'SearchGUI/PeptideShaker specific options',
+        }),
+        ('MZmine', {
+            'classes': ('collapse', 'extrapretty'),
+            'fields': (
+                'mzmine_tpd_intensity',
+                'mzmine_tpd_mztolerance',
+                'mzmine_tpd_ppmtolerance'
             )
         }),
-        ('PROFILE SEARCH ENGINES', {
-            'fields':(( 'comet_profile', 'metamorpheus_profile', 'msgf_profile', 'myrimatch_profile', 'omssa_profile', 'xtandem_profile',),)
-        }),
-        ('PROTEOME SEARCH ENGINES', {
-            'fields':(('comet_proteome', 'metamorpheus_proteome', 'msgf_proteome', 'myrimatch_proteome', 'omssa_proteome', 'xtandem_proteome',),)
-        })        
     )
+    readonly_fields = ('profile_method',)
         
 class ProjectAdmin(admin.ModelAdmin):
     list_display = ('name', 'description')
@@ -159,7 +171,7 @@ class ProjectAdmin(admin.ModelAdmin):
         
 class SearchSettingAdmin(admin.ModelAdmin):
     inlines = (EnzymeChoiceInline, ModChoiceInline)
-    list_display = ('project', 'modification_list', 'enzyme_list')
+    list_display = ('project', 'modification_list', 'enzyme_list', 'multiplex',)
     list_display_links = ('project',)
     
     def modification_list(self, obj):
@@ -167,30 +179,45 @@ class SearchSettingAdmin(admin.ModelAdmin):
 
     def enzyme_list(self, obj):
         return ", ".join([a.name for a in obj.enzymes.all()])
-    
+
     fieldsets = (
-        (None, {
-            'fields': ('project', 
-                ('min_peptide_length', 'max_peptide_length'),
+        ('MetaProD', {
+            'classes': ('collapse in'),
+            'fields': ('project',
+                ('use_crap', 'use_human'),
+                ('profile_type', 'profile_threshold', 'profile_method'),
+                ('multiplex', 'run_deqms', 'mzmine_run_mzmine'),
+                ('imput_threshold')
+            ),
+            'description': 'MetaProD specific options',
+        }),    
+        ('SearchGUI/PeptideShaker', {
+            'classes': ('collapse', 'extrapretty'),
+            'fields': (('min_peptide_length', 'max_peptide_length'),
                 ('min_charge', 'max_charge'),
                 ('prec_tol', 'prec_ppm'),
                 ('frag_tol', 'frag_ppm'),
                 ('isotope_min', 'isotope_max'),
                 ('instrument', 'fragmentation'),
                 ('psm_fdr', 'peptide_fdr', 'protein_fdr'),
-                ('multiplex', 'run_deqms'),
-                ('use_crap', 'use_human'),
-                ('profile_type', 'profile_threshold'),
-
+                ('comet_profile', 'metamorpheus_profile', 'msgf_profile', 'myrimatch_profile', 'omssa_profile', 'xtandem_profile',),
+                ('comet_proteome', 'metamorpheus_proteome', 'msgf_proteome', 'myrimatch_proteome', 'omssa_proteome', 'xtandem_proteome',),
+            ),
+            'description': 'SearchGUI/PeptideShaker specific options',
+        }),
+        ('MZmine', {
+            'classes': ('collapse', 'extrapretty'),
+            'fields': (
+                'mzmine_tpd_intensity',
+                'mzmine_tpd_mztolerance',
+                'mzmine_tpd_ppmtolerance'
             )
         }),
-        ('PROFILE SEARCH ENGINES', {
-            'fields':(( 'comet_profile', 'metamorpheus_profile', 'msgf_profile', 'myrimatch_profile', 'omssa_profile', 'xtandem_profile',),)
-        }),
-        ('PROTEOME SEARCH ENGINES', {
-            'fields':(('comet_proteome', 'metamorpheus_proteome', 'msgf_proteome', 'myrimatch_proteome', 'omssa_proteome', 'xtandem_proteome',),)
-        })        
     )
+    readonly_fields = ('profile_method',)
+    
+
+    
 class ModListAdmin(admin.ModelAdmin):
     list_display = ('name','description')
     list_display_links = ('name',)
@@ -224,15 +251,17 @@ class RunTimeAdmin(admin.ModelAdmin):
     list_filter = (QueueProjectListFilter,)
     list_display = ('project', 'queue', 'msconvert', 
                     'searchgui_profile', 'peptideshaker_profile', 
-                    'reporter_profile', 'read_results_profile',
-                    'process_results_profile', 'searchgui_proteome', 
-                    'peptideshaker_proteome', 'reporter_proteome',
+                    'reporter_profile', 'mzmine_profile', 
+                    'read_results_profile', 'process_results_profile', 
+                    'searchgui_proteome', 'peptideshaker_proteome', 
+                    'reporter_proteome', 'mzmine_proteome',
                     'read_results_proteome', 'process_results_proteome')
     list_display_links = ('project', 'queue', 'msconvert', 
                           'searchgui_profile', 'peptideshaker_profile', 
-                          'reporter_profile', 'read_results_profile',
-                          'process_results_profile', 'searchgui_proteome', 
-                          'peptideshaker_proteome', 'reporter_proteome',
+                          'reporter_profile', 'mzmine_profile',
+                          'read_results_profile', 'process_results_profile', 
+                          'searchgui_proteome', 'peptideshaker_proteome',
+                          'reporter_proteome', 'mzmine_proteome',
                           'read_results_proteome', 'process_results_proteome')
     
     def project(self, obj):

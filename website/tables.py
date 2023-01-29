@@ -97,7 +97,8 @@ class ProteinListTable(Table):
     class Meta:
         model = Protein
         fields = ('fp__accession', 'fp__gene', 'fp__ppid__proteome', 'fp__ppid__organism', 
-                  'fp__description', 'val_num_peptide', 'val_num_psm', 'nsaf')
+                  'fp__description', 'val_num_peptide', 'val_num_psm', 'nsaf',
+                  'peak_area')
         attrs = {"class": "table table-hover"}
         order_by = '-nsaf'
         export_formats = ['csv']
@@ -146,10 +147,12 @@ class PeptideListTable(Table):
                       verbose_name='Organism', visible=False)
     proteome = Column(accessor='protein__fp__ppid__proteome', 
                       verbose_name='Proteome', visible=False)
+
     class Meta:
         model = Peptide
         fields = ('proteome', 'organism', 'protein__fp__accession', 
-                  'sequence', 'mod_sequence', 'val_num_psm')
+                  'sequence', 'mod_sequence', 'val_num_psm',
+                  'peak_area')
         attrs = {"class": "table table-hover"}
         order_by = '-val_num_psm'
         
@@ -169,11 +172,13 @@ class PsmListTable(Table):
     proteome = Column(accessor='peptide__protein__fp__ppid__proteome', 
                       verbose_name='Proteome', 
                       visible=False)
+                      
+    area = Column(verbose_name = 'Area', accessor='peak_area')
     class Meta:
         model = Psm
         fields = ('proteome', 'organism', 'peptide__protein__fp__accession', 
                   'sequence', 'mod_sequence', 'fixed_ptm', 'variable_ptm', 
-                  'rt', 'charge')
+                  'rt', 'charge', 'area')
         attrs = {"class": "table table-hover"}
         order_by = 'sequence'
         
@@ -219,20 +224,20 @@ class FileSummaryTable(Table):
         template_code=
             '''<a href="https://www.uniprot.org/proteomes/{{ record.ppid.proteome }}">{{ record.ppid.organism }}</a>'''
     )    
-    proteins = TemplateColumn(
-        orderable=False, 
+    val_num_protein = TemplateColumn(
+        orderable=True, 
         verbose_name='Proteins', 
         template_code=
             '''<a href="{% url 'protein_list' %}?project={{ record.queue.project.name }}&file={{ record.queue.id }}&proteome={{ record.ppid.proteome }}&type={{ record.type|capfirst }}">{{ record.val_num_protein }}</a>'''
     )
-    peptides = TemplateColumn(
-        orderable=False, 
+    val_num_peptide = TemplateColumn(
+        orderable=True, 
         verbose_name='Peptides', 
         template_code=
             '''<a href="{% url 'peptide_list' %}?project={{ record.queue.project.name }}&file={{ record.queue.id }}&proteome={{ record.ppid.proteome }}&type={{ record.type|capfirst }}">{{ record.val_num_peptide }}</a>'''
     )
-    psms = TemplateColumn(
-        orderable=False, 
+    val_num_psm = TemplateColumn(
+        orderable=True, 
         verbose_name='PSMs', 
         template_code=
             '''<a href="{% url 'psm_list' %}?project={{ record.queue.project.name }}&file={{ record.queue.id }}&proteome={{ record.ppid.proteome }}&type={{ record.type|capfirst }}">{{ record.val_num_psm }}</a>'''
@@ -240,7 +245,7 @@ class FileSummaryTable(Table):
     nsaf = Column(verbose_name='NSAF') 
     class Meta:
         model = SpeciesFileSummary
-        fields = ('proteome', 'organism', 'proteins', 'peptides', 'psms', 'nsaf')
+        fields = ('proteome', 'organism', 'val_num_protein', 'val_num_peptide', 'val_num_psm', 'nsaf', 'peak_area')
         attrs = {"class": "table table-hover"}
         order_by = '-nsaf'
         
@@ -271,6 +276,7 @@ class SpeciesListTable(Table):
     class Meta:
         model = SpeciesSummary
         fields = ('proteome', 'organism', 'val_num_protein', 
-                  'val_num_peptide', 'val_num_psm', 'nsaf')
+                  'val_num_peptide', 'val_num_psm', 'nsaf',
+                  'peak_area')
         attrs = {"class": "table table-hover"}
         order_by = '-nsaf'

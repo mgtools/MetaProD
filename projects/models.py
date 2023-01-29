@@ -1,6 +1,7 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.contrib import messages
+from django.core.validators import MaxValueValidator, MinValueValidator
 
 class QueueManager(models.Manager):
     def get_by_natural_key(self, project, filename):
@@ -11,22 +12,24 @@ class Queue(models.Model):
 
     objects = QueueManager()
     
-    class Status(models.IntegerChoices):
-        FILE_ADDED = 0, _('File added')
-        THERMO = 1, _('Ready for thermorawfileparser')
-        SEARCHGUI_PROF = 2, _('Ready for SearchGUI profile')
-        PEPTIDESHAKER_PROF = 3, _('Ready for PeptideShaker profile')
-        REPORTER_PROF = 4, ('Ready for Reporter profile')
-        READ_RESULTS_PROF = 5, _('Ready for read_results profile')
-        PROCESS_RESULTS_PROF = 6, _('Ready for process_results profile')
-        FINISHED_PROF = 7, _('File is finished profile step')
-        SEARCHGUI_PROT = 8, _('Ready for SearchGUI proteome')
-        PEPTIDESHAKER_PROT = 9, _('Ready for PeptideShaker proteome')
-        REPORTER_PROT = 10, _('Ready for Reporter proteome')
-        READ_RESULTS_PROT = 11, _('Ready for read_results proteome')
-        PROCESS_RESULTS_PROT = 12, _('Ready for process_results proteome')
-        FINISHED_PROT = 13, _('File is finished proteome step')
-        FILE_FINISHED = 14, _('File is finished and cleaned up')
+    class Status(models.TextChoices):
+        FILE_ADDED = 'FILE_ADDED', _('File added')
+        THERMO = 'THERMO', _('Ready for thermorawfileparser')
+        SEARCHGUI_PROF = 'SEARCHGUI_PROF', _('Ready for SearchGUI profile')
+        PEPTIDESHAKER_PROF = 'PEPTIDESHAKER_PROF', _('Ready for PeptideShaker profile')
+        REPORTER_PROF = 'REPORTER_PROF', ('Ready for Reporter profile')
+        MZMINE_PROF = 'MZMINE_PROF', ('Ready for MZmine profile')
+        READ_RESULTS_PROF = 'READ_RESULTS_PROF', _('Ready for read_results profile')
+        PROCESS_RESULTS_PROF = 'PROCESS_RESULTS_PROF', _('Ready for process_results profile')
+        FINISHED_PROF = 'FINISHED_PROF', _('File is finished profile step')
+        SEARCHGUI_PROT = 'SEARCHGUI_PROT', _('Ready for SearchGUI proteome')
+        PEPTIDESHAKER_PROT = 'PEPTIDESHAKER_PROT', _('Ready for PeptideShaker proteome')
+        REPORTER_PROT = 'REPORTER_PROT', _('Ready for Reporter proteome')
+        MZMINE_PROT = 'MZMINE_PROT', _('Ready for MZmine proteome')
+        READ_RESULTS_PROT = 'READ_RESULTS_PROT', _('Ready for read_results proteome')
+        PROCESS_RESULTS_PROT = 'PROCESS_RESULTS_PROT', _('Ready for process_results proteome')
+        FINISHED_PROT = 'FINISHED_PROT', _('File is finished proteome step')
+        FILE_FINISHED = 'FILE_FINISHED', _('File is finished and cleaned up')
     
     class Error(models.IntegerChoices):
         READY = 0, _('No Error')
@@ -68,7 +71,7 @@ class Queue(models.Model):
         blank=True, 
         help_text="Date file completed processing."
     )
-    status = models.IntegerField(
+    status = models.TextField(
         choices=Status.choices, 
         help_text="File progress status."
     )
@@ -130,6 +133,11 @@ class SearchSetting(models.Model):
         FILE = 0, _('File')
         SAMPLE = 1, _('Sample')
         PROJECT = 2, _('Project')
+    
+    class ProfileMethod(models.IntegerChoices):
+        NSAF = 0, _('NSAF')
+        PSM = 1, _('PSM')
+        PEAK_AREA = 2, _('Peak Area')
         
     project = models.OneToOneField(
         'Project', 
@@ -322,6 +330,7 @@ class SearchSetting(models.Model):
         help_text="Top percent of NSAF to include when profiling"
     )
     run_deqms = models.BooleanField(
+        "Run DEqMS",
         default=True,
         help_text = "Run DEqMS on multiplexed data?"
     )
@@ -329,7 +338,41 @@ class SearchSetting(models.Model):
         default=50,
         help_text="Percent of channels to require when filtering results before PEMM."
     )
-    
+    profile_method = models.IntegerField(
+        choices=ProfileMethod.choices,
+        default=0,
+        help_text="LFQ method to use for profiling."
+    )
+    mzmine_run_mzmine = models.BooleanField(
+        "Run MZmine",
+        default=False,
+        help_text = "Run MZmine to calculate peak areas."
+    )
+    mzmine_tpd_intensity = models.DecimalField(max_digits=3, decimal_places=2,
+        default=0.50,
+        validators=[
+            MaxValueValidator(1),
+            MinValueValidator(0)
+        ],
+        help_text="MZmine targeted peak detection intensity tolerance (from 0 to 1)."
+    )
+    mzmine_tpd_mztolerance = models.DecimalField(max_digits=4, decimal_places=3,
+        default=0.001,
+        validators=[
+            MaxValueValidator(1),
+            MinValueValidator(0.0001)
+        ],
+        help_text = "MZmine targeted peak detection absolute m/z tolerance."
+    )
+    mzmine_tpd_ppmtolerance = models.DecimalField(max_digits=3, decimal_places=1,
+        default=10.0,
+        validators=[
+            MaxValueValidator(99.9),
+            MinValueValidator(0.1)
+        ],
+        help_text = "MZmine targeted peak detection m/z PPM tolerance."
+    )
+        
     def __str__(self):
         return self.project.name
     
@@ -343,11 +386,13 @@ class RunTime(models.Model):
     searchgui_profile = models.IntegerField(default=0)
     peptideshaker_profile = models.IntegerField(default=0)
     reporter_profile = models.IntegerField(default=0)
+    mzmine_profile = models.IntegerField(default=0)
     read_results_profile = models.IntegerField(default=0)
     process_results_profile = models.IntegerField(default=0)
     searchgui_proteome = models.IntegerField(default=0)
     peptideshaker_proteome = models.IntegerField(default=0)
     reporter_proteome = models.IntegerField(default=0)
+    mzmine_proteome = models.IntegerField(default=0)
     read_results_proteome = models.IntegerField(default=0)
     process_results_proteome = models.IntegerField(default=0)
     
@@ -387,22 +432,29 @@ class Setting(models.Model):
         max_length=100, 
         blank=False, 
         null=False, 
-        default='4.1.16',
+        default='4.1.24',
         help_text = "SearchGUI version"
     )
     peptideshaker_ver = models.CharField(
         max_length=100, 
         blank=False, 
         null=False, 
-        default='2.2.9',
+        default='2.2.17',
         help_text = "PeptideShaker version"
     )
     reporter_ver = models.CharField(
         max_length=100, 
         blank=False, 
         null=False, 
-        default='0.9.8',
+        default='0.9.14',
         help_text="Reporter version"
+    )
+    mzmine_ver = models.CharField(
+        max_length=100,
+        blank=False,
+        null=False,
+        default='3.3.0',
+        help_text="MZmine version"
     )
     threads = models.IntegerField(
         default=-1,

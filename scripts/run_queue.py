@@ -18,6 +18,7 @@ from .read_results import read_results
 from .generate_fasta import generate_fasta
 from .run_reporter import run_reporter
 from .process_results import process_results
+from .run_mzmine import run_mzmine
 
 def run(*args):
     parser = argparse.ArgumentParser()
@@ -81,11 +82,13 @@ def run_queue(project, job):
                            + runtimex.searchgui_profile
                            + runtimex.peptideshaker_profile
                            + runtimex.reporter_profile
+                           + runtimex.mzmine_profile
                            + runtimex.read_results_profile
                            + runtimex.process_results_profile
                            + runtimex.searchgui_proteome
                            + runtimex.peptideshaker_proteome
                            + runtimex.reporter_proteome
+                           + runtimex.mzmine_proteome
                            + runtimex.read_results_proteome
                            + runtimex.process_results_proteome
                            )
@@ -109,12 +112,28 @@ def run_queue(project, job):
                 queue.error += 1 
                 queue.save()
 
+        elif queue.status == Queue.Status.MZMINE_PROT:
+            if searchsetting.mzmine_run_mzmine == True:
+                write_debug("Starting run_mzmine for project: %s, filename: %s, type: proteome." % (project, filename), job, project)
+                if run_mzmine(queue.id) == True:
+                    queue.status = Queue.Status.READ_RESULTS_PROT
+                    queue.error = 0
+                    queue.save()
+                    write_debug("Finished run_mzmine for project: %s, filename: %s, type: proteome." % (project, filename), job, project)
+                else:
+                    write_debug("Failed run_mzmine for project: %s, filename: %s, type: proteome." % (project, filename), job, project)
+                    queue.error += 1
+                    queue.save()
+            else:
+                queue.status = Queue.Status.READ_RESULTS_PROT
+                queue.save()
+                
         elif queue.status == Queue.Status.REPORTER_PROT:
             # reporter is only needed for multiplexed
             if searchsetting.multiplex == True:
                 write_debug("Starting run_reporter for project: %s, filename: %s, type: proteome." % (project, filename), job, project)
                 if run_reporter(queue.id) == True:
-                    queue.status = Queue.Status.READ_RESULTS_PROT
+                    queue.status = Queue.Status.MZMINE_PROT
                     queue.error = 0
                     queue.save()
                     write_debug("Finished run_reporter for project: %s, filename: %s, type: proteome." % (project, filename), job, project)
@@ -123,7 +142,7 @@ def run_queue(project, job):
                     queue.error += 1
                     queue.save()
             else:
-                queue.status = Queue.Status.READ_RESULTS_PROT
+                queue.status = Queue.Status.MZMINE_PROT
                 queue.save()
 
         elif queue.status == Queue.Status.PEPTIDESHAKER_PROT:
@@ -167,6 +186,7 @@ def run_queue(project, job):
                            + runtimex.searchgui_profile
                            + runtimex.peptideshaker_profile
                            + runtimex.reporter_profile
+                           + runtimex.mzmine_profile
                            + runtimex.read_results_profile
                            + runtimex.process_results_profile
                            )
@@ -191,12 +211,28 @@ def run_queue(project, job):
                 queue.error += 1 
                 queue.save()
 
+        elif queue.status == Queue.Status.MZMINE_PROF:
+            if searchsetting.mzmine_run_mzmine == True:
+                write_debug("Starting run_mzmine for project: %s, filename: %s, type: profile." % (project, filename), job, project)
+                if run_mzmine(queue.id) == True:
+                    queue.status = Queue.Status.READ_RESULTS_PROF
+                    queue.error = 0
+                    queue.save()
+                    write_debug("Finished run_mzmine for project: %s, filename: %s, type: profile." % (project, filename), job, project)
+                else:
+                    write_debug("Failed run_mzmine for project: %s, filename: %s, type: profile." % (project, filename), job, project)
+                    queue.error += 1
+                    queue.save()
+            else:
+                queue.status = Queue.Status.READ_RESULTS_PROF
+                queue.save()
+                
         elif queue.status == Queue.Status.REPORTER_PROF:
             # reporter is only needed for multiplexed
             if searchsetting.multiplex == True:
                 write_debug("Starting run_reporter for project: %s, filename: %s" % (project, filename), job, project)
                 if run_reporter(queue.id) == True:
-                    queue.status = Queue.Status.READ_RESULTS_PROF
+                    queue.status = Queue.Status.MZMINE_PROF
                     queue.error = 0
                     queue.save()
                     write_debug("Starting run_reporter for project: %s, filename: %s" % (project, filename), job, project)
@@ -205,7 +241,7 @@ def run_queue(project, job):
                     queue.error += 1
                     queue.save()
             else:
-                queue.status = Queue.Status.READ_RESULTS_PROF
+                queue.status = Queue.Status.MZMINE_PROF
                 queue.save()
                 
         elif queue.status == Queue.Status.PEPTIDESHAKER_PROF:

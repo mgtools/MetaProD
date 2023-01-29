@@ -167,6 +167,7 @@ def summary(request, project):
     repo = 0
     rere = 0
     prre = 0
+    mzre = 0
     total_psm_prof = 0
     total_psm_prot = 0
     total_pep_prof = 0
@@ -228,14 +229,18 @@ def summary(request, project):
             ).count()
         )
         proteome_dict[file['id']]['psm'] = psms_prot
-
-        runtime = RunTime.objects.get(queue__id=file['id'])
-        trfp += runtime.msconvert
-        sgui += runtime.searchgui_profile+runtime.searchgui_proteome
-        peps += runtime.peptideshaker_profile+runtime.peptideshaker_proteome
-        repo += runtime.reporter_profile+runtime.reporter_proteome
-        rere += runtime.read_results_profile+runtime.read_results_proteome
-        prre += runtime.process_results_profile+runtime.process_results_proteome
+        
+        try:
+            runtime = RunTime.objects.get(queue__id=file['id'])
+            trfp += runtime.msconvert
+            sgui += runtime.searchgui_profile+runtime.searchgui_proteome
+            peps += runtime.peptideshaker_profile+runtime.peptideshaker_proteome
+            repo += runtime.reporter_profile+runtime.reporter_proteome
+            rere += runtime.read_results_profile+runtime.read_results_proteome
+            prre += runtime.process_results_profile+runtime.process_results_proteome
+            mzre += runtime.mzmine_profile+runtime.mzmine_proteome
+        except:
+            pass
         
         total_psm_prof += psms_prof
         total_psm_prot += psms_prot
@@ -245,7 +250,7 @@ def summary(request, project):
         total_pro_prot += proteins_prot
         
     runtime_dict = {'trfp':trfp, 'sgui':sgui, 'peps':peps, 'repo':repo,
-                    'rere':rere, 'prre':prre}
+                    'rere':rere, 'prre':prre, 'mzre':mzre}
     totals_dict = {'pep_prof': total_pep_prof, 'pep_prot': total_pep_prot,
                    'psm_prof': total_psm_prof, 'psm_prot': total_psm_prot,
                    'pro_prof': total_pro_prof, 'pro_prot': total_pro_prot}

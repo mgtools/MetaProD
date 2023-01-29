@@ -118,7 +118,7 @@ def generate_fasta(project, type):
                     print("FASTA already exists. Copying.")
                     previous = list(samples.values())[0]
                     shutil.copy("%s%s%s_%s_%s_concatenated_target_decoy.fasta" % (os.path.join(settings.data_folder, project, "fasta", "proteome", previous), os.sep, project, previous, "proteome"),
-                                "%s%s%s_%s_%s_%s_concatenated_target_decoy.fasta" % (os.path.join(settings.data_folder, project, "fasta", "proteome", entry.filename), os.sep, project, entry.filename, "proteome"))
+                                "%s%s%s_%s_%s_concatenated_target_decoy.fasta" % (os.path.join(settings.data_folder, project, "fasta", "proteome", entry.filename), os.sep, project, entry.filename, "proteome"))
           
                 
             fasta_file_concat = "%s%s%s_%s_%s_concatenated_target_decoy.fasta" % (os.path.join(settings.data_folder, project, "fasta", "proteome", entry.filename), os.sep, project, entry.filename, "proteome")

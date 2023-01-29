@@ -17,6 +17,7 @@ import numpy as np
 import warnings
 
 from django.core.exceptions import ObjectDoesNotExist
+from django.db.models import Sum
 
 csv.field_size_limit(sys.maxsize)
 
@@ -83,6 +84,9 @@ def read_results(queue_id, type):
     
     write_debug("Reading output.", job, project)
     data_psm  = pd.read_csv(data_file_psm, header=0, sep='\t', low_memory=False)
+    # peak area
+    if searchsetting.mzmine_run_mzmine == True:
+        data_psm_pa = pd.read_csv("%s%s%s_mzexport.csv" % (os.path.join(settings.data_folder, project, "out", filename, type), os.sep, filename), sep=',', low_memory=False)
     
     # no psms, so we should just skip the file as a way to give a warning
     if data_psm.shape[0] <= 1:
@@ -126,6 +130,12 @@ def read_results(queue_id, type):
     psmratio_list = []
     write_debug("Reading and saving PSMs (this may take some time).", job, project)
     for index, row in data_psm.iterrows():
+        try:
+            peak_area = math.log2(data_psm_pa[data_psm_pa['compound_db_identity:compound_name'] == row['Spectrum Title']]['area'].values[0])
+        except:
+            # set to 0 if mzmine didn't find a peak
+            peak_area = None
+
         psm = Psm(queue=queue,
                   accessions=row['Protein(s)'],
                   sequence=row['Sequence'],
@@ -139,7 +149,8 @@ def read_results(queue_id, type):
                   validation=row['Validation'],
                   confidence=Decimal(row['Confidence [%]']),
                   title=row['Spectrum Title'],
-                  type=type)
+                  type=type,
+                  peak_area = peak_area)
         psm.save()
         
         # insert the reporter ratio, which is the deisotoped intensity then normalized vs reference channel
@@ -172,6 +183,20 @@ def read_results(queue_id, type):
         group = peptides.get_group(p)
         val_num_psm = group.shape[0]
         first_entry = group.iloc[0]
+        if searchsetting.mzmine_run_mzmine == True:
+            peak_area = 0
+            peak_area_psm = 0
+
+            query = (Psm.objects.filter(mod_sequence=first_entry['Modified Sequence'])
+                                .filter(peak_area__gt=0)
+                                .filter(type=type))
+            for entry in query:
+                peak_area += entry.peak_area
+                peak_area_psm += 1
+        else:
+            peak_area = None
+            peak_area_psm = None
+            
         accessions = first_entry['Protein(s)']
         sequence = first_entry['Sequence']
         mod_sequence = first_entry['Modified Sequence']
@@ -194,7 +219,9 @@ def read_results(queue_id, type):
                           fixed_ptm=fixed_ptm,
                           val_num_psm=val_num_psm,
                           validation=validation,
-                          type=type)
+                          type=type,
+                          peak_area=peak_area,
+                          peak_area_psm=peak_area_psm)
         peptide.save()
         
         # moved ratios to later because we need to know ppid of protein to remove contaminants
