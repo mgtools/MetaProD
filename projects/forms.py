@@ -43,7 +43,9 @@ class QueueForm(forms.ModelForm):
         fields = ('__all__')
         widgets = {
             'sample': autocomplete.ModelSelect2(url='queuesample',
-                                              forward=('project',))
+                                                forward=('project',)),
+            'tag': autocomplete.ModelSelect2(url='queuetag',
+                                             forward=('project',))
         }
     class Media:
         js = (

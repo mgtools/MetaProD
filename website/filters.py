@@ -1,6 +1,6 @@
 import django_filters
 
-from projects.models import Project, Queue
+from projects.models import Project, Queue, Tag
 from results.models import (
     Protein, 
     Peptide, 
@@ -24,6 +24,14 @@ def get_files_protein(request):
     
     return Queue.objects.filter(project__name=project)
 
+def get_tags_protein(request):
+    if request is None:
+        return Tag.objects.none()
+        
+    project = request.GET.get('project','')
+    
+    return Tag.objects.filter(project__name=project)
+    
 TYPE_CHOICES = (
     ('profile', 'Profile'),
     ('proteome', 'Proteome'),
@@ -34,8 +42,13 @@ class ProteinListFilter(django_filters.FilterSet):
     gene = django_filters.CharFilter(field_name='fp__gene')
     proteome = django_filters.CharFilter(field_name='fp__ppid__proteome')
     organism = django_filters.CharFilter(field_name='fp__ppid__organism')
-    file = django_filters.ModelChoiceFilter(field_name='queue__filename', queryset=get_files_protein)
+    file = django_filters.ModelChoiceFilter(field_name='queue__filename', 
+                                            queryset=get_files_protein,
+                                            label='Filename')
     type = django_filters.ChoiceFilter(lookup_expr='iexact', choices = TYPE_CHOICES)
+    tag = django_filters.ModelChoiceFilter(field_name='queue__tag__name', 
+                                           queryset=get_tags_protein,
+                                           label='Tag')
     class Meta:
         model = Protein
         fields = ['project', 'gene', 'proteome', 'organism', 'file', 'type']
@@ -57,8 +70,13 @@ class PeptideListFilter(django_filters.FilterSet):
     protein__id = django_filters.CharFilter(field_name='protein__id')
     organism = django_filters.CharFilter(field_name='protein__fp__ppid__organism')
     proteome = django_filters.CharFilter(field_name='protein__fp__ppid__proteome')
-    file = django_filters.ModelChoiceFilter(field_name='queue__filename', queryset=get_files_protein)
+    file = django_filters.ModelChoiceFilter(field_name='queue__filename',
+                                            queryset=get_files_protein,
+                                            label='Filename')
     type = django_filters.ChoiceFilter(lookup_expr='iexact', choices = TYPE_CHOICES)
+    tag = django_filters.ModelChoiceFilter(field_name='queue__tag__name', 
+                                           queryset=get_tags_protein,
+                                           label='Tag')
     class Meta:
         model = Peptide
         fields = ['project', 'protein__id','sequence','type', 'organism', 'file']
@@ -68,8 +86,13 @@ class PsmListFilter(django_filters.FilterSet):
     project = django_filters.CharFilter(field_name='queue__project__name')
     organism = django_filters.CharFilter(field_name='peptide__protein__fp__ppid__organism')
     proteome = django_filters.CharFilter(field_name='peptide__protein__fp__ppid__proteome')
-    file = django_filters.ModelChoiceFilter(field_name='queue__filename', queryset=get_files_protein)
+    file = django_filters.ModelChoiceFilter(field_name='queue__filename',
+                                            queryset=get_files_protein,
+                                            label='Filename')
     type = django_filters.ChoiceFilter(lookup_expr='iexact', choices = TYPE_CHOICES)
+    tag = django_filters.ModelChoiceFilter(field_name='queue__tag__name', 
+                                           queryset=get_tags_protein,
+                                           label='Tag')
     class Meta:
         model = Psm
         fields = ['project', 'sequence', 'mod_sequence', 'type', 'accession', 'organism', 'proteome', 'file']

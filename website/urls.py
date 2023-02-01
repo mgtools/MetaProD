@@ -6,20 +6,27 @@ from website import views
 from django.contrib import admin
 from django.conf.urls.static import static
 from django.conf import settings
-from projects.models import MultiplexLabel, Sample, Label, Queue
+from projects.models import MultiplexLabel, Sample, Label, Queue, Tag
 
 class QueueSample(autocomplete.Select2QuerySetView):
     def get_queryset(self):
         qs = Sample.objects.none()
-        #qs = super(LinkedDataView, self).get_queryset()
         project = self.forwarded.get('project', None)
-        print(self.forwarded)
         if project:
             qs = Sample.objects.filter(project=project)
             #qs = qs.filter(project=project)
 
         return qs
-        
+
+class QueueTag(autocomplete.Select2QuerySetView):
+    def get_queryset(self):
+        qt = Tag.objects.none()
+        project = self.forwarded.get('project', None)
+        if project:
+            qt = Tag.objects.filter(project=project)
+
+        return qt
+
 class MultiplexLabelSample(autocomplete.Select2QuerySetView):
     def get_queryset(self):
         qs = Sample.objects.none()
@@ -101,5 +108,10 @@ urlpatterns = [
         '^queuesample/$',
         QueueSample.as_view(model=Queue),
         name='queuesample'
-    ),    
+    ),
+    url(
+        '^queuetag/$',
+        QueueTag.as_view(model=Queue),
+        name='queuetag'
+    )
 ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

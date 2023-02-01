@@ -62,9 +62,11 @@ def generate_file_queue(project, jobs):
             shutil.rmtree(os.path.join(install_folder, "temp", project))
             
     # look for files
+    file_count = 0
     for root, dirs, files in os.walk(os.path.join(settings.data_folder, project, "raw")):
         for file in files:
             if file.endswith('.raw') or file.endswith('.mzML'):
+                file_count += 1
                 filename = Path(file).stem
                 if filename not in files_list:
                     try:                
@@ -85,6 +87,10 @@ def generate_file_queue(project, jobs):
         print("Files added to queue. Be sure to run: ./generate_fasta %s" % project)
         return True
 
+    if file_count == 0:
+        print("No files found in %s." % os.path.join(settings.data_folder, project, "raw"))
+        return False
+        
     # so we didn't add anything, now check for status 13
     # if this is true, everything is 13 or higher so run update_queue final
     if not Queue.objects.filter(project__name=project, skip=False).exclude(status=Queue.Status.FINISHED_PROT).exists():

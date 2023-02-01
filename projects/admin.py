@@ -20,7 +20,8 @@ from .models import (
     Label,
     LabelChoice,
     Phenotype,
-    Reagent
+    Reagent,
+    Tag
 )
 
 from .forms import MultiplexLabelForm, MultiplexLabelInlineForm, QueueForm
@@ -217,9 +218,7 @@ class SearchSettingAdmin(admin.ModelAdmin):
         }),
     )
     readonly_fields = ('profile_method',)
-    
 
-    
 class ModListAdmin(admin.ModelAdmin):
     list_display = ('name','description')
     list_display_links = ('name',)
@@ -306,6 +305,11 @@ class ReagentAdmin(admin.ModelAdmin):
     list_display = ('name', 'description')
     list_display_links = ('name', 'description')
     inlines = (LabelInline,)
+
+class TagAdmin(admin.ModelAdmin):
+    list_filter = (ProjectListFilter,)
+    list_display = ('project', 'name')
+    list_display_links = ('project', 'name')
     
 admin.site.register(Queue, QueueAdmin)
 admin.site.register(Project, ProjectAdmin)
@@ -318,3 +322,4 @@ admin.site.register(Sample, SampleAdmin)
 admin.site.register(Label, LabelAdmin)
 admin.site.register(Reagent, ReagentAdmin)
 admin.site.register(Phenotype, PhenotypeAdmin)
+admin.site.register(Tag, TagAdmin)

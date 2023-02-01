@@ -93,11 +93,12 @@ class Queue(models.Model):
         default=0, 
         help_text="Total runtime including processing steps."
     )
-    tag = models.CharField(
-        max_length=50,
-        null=True,
-        blank=True,
-        help_text="Optional tag to identify the file (e.g., phenotype)"
+    tag = models.ForeignKey(
+        'Tag', 
+        on_delete=models.SET_NULL, 
+        blank=True, 
+        null=True, 
+        help_text="Optional tag for this file (e.g., phenotype)."
     )
     description = models.CharField(
         max_length=100,
@@ -575,7 +576,36 @@ class Sample(models.Model):
     def natural_key(self):
         return(self.project.name, self.name,)
     natural_key.dependencies = ['projects.project']
+
+class TagManager(models.Manager):
+    def get_by_natural_key(self, project, name):
+        return self.get(project=project, name=name)
         
+class Tag(models.Model):
+
+    objects = TagManager()
+        
+    name = models.CharField(
+        max_length=50,
+        help_text="Name of tag."
+    )
+    project = models.ForeignKey(
+        'Project', 
+        on_delete=models.CASCADE, 
+        help_text="Project name"
+    )
+    description = models.CharField(max_length=100, blank=True, null=True)
+    
+    def __str__(self):
+        return self.name
+        
+    class Meta:
+        unique_together = ('name', 'project')
+
+    def natural_key(self):
+        return(self.project.name, self.name,)
+    natural_key.dependencies = ['projects.project']
+    
 # table of phenotypes, i.e. for multiplexed samples
 class Phenotype(models.Model):
     phenotype = models.CharField(

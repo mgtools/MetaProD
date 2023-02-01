@@ -85,10 +85,13 @@ def project_list(request):
     projects = (Project.objects.all().values('name', 'description'))
     project_dict = {}
     for project in projects:
-        multiplexed = (SearchSetting.objects.get(project__name=project['name']))
         project_dict[project['name']] = {}
         project_dict[project['name']]['description'] = project['description']
-        project_dict[project['name']]['multiplexed'] = multiplexed.multiplex
+        try:
+            multiplexed = (SearchSetting.objects.get(project__name=project['name']))
+            project_dict[project['name']]['multiplexed'] = multiplexed.multiplex
+        except:
+            project_dict[project['name']]['multiplexed'] = False
     return render(request, 
         'website/project_list.html', 
         {'project_dict': project_dict}
