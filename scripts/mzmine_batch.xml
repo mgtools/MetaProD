@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?><batch>
+    <batchstep method="io.github.mzmine.modules.io.import_rawdata_mzml.MSDKmzMLImportModule">
+        <parameter name="File names">
+            <file>Z:\data\example\out\180228_StS_flowrate_Bd16_ctrl_rep1\180228_StS_flowrate_Bd16_ctrl_rep1.mzML</file>
+        </parameter>
+    </batchstep>
+    <batchstep method="io.github.mzmine.modules.dataprocessing.featdet_massdetection.MassDetectionModule">
+        <parameter name="Raw data files" type="BATCH_LAST_FILES"/>
+        <parameter name="Scans"/>
+        <parameter name="Scan types (IMS)">All scan types</parameter>
+        <parameter name="Mass detector" selected_item="Centroid">
+            <module name="Factor of lowest signal">
+                <parameter name="Noise factor">2.5</parameter>
+            </module>
+            <module name="Centroid">
+                <parameter name="Noise level">1000.0</parameter>
+                <parameter name="Detect isotope signals below noise level" selected="false">
+                    <parameter name="Chemical elements">H,C,N,O,S</parameter>
+                    <parameter name="m/z tolerance">
+                        <absolutetolerance>5.0E-4</absolutetolerance>
+                        <ppmtolerance>10.0</ppmtolerance>
+                    </parameter>
+                    <parameter name="Maximum charge of isotope m/z">1</parameter>
+                </parameter>
+            </module>
+            <module name="Exact mass">
+                <parameter name="Noise level"/>
+                <parameter name="Detect isotope signals below noise level" selected="false">
+                    <parameter name="Chemical elements">H,C,N,O,S</parameter>
+                    <parameter name="m/z tolerance">
+                        <absolutetolerance>5.0E-4</absolutetolerance>
+                        <ppmtolerance>10.0</ppmtolerance>
+                    </parameter>
+                    <parameter name="Maximum charge of isotope m/z">1</parameter>
+                </parameter>
+            </module>
+            <module name="Local maxima">
+                <parameter name="Noise level"/>
+            </module>
+            <module name="Recursive threshold">
+                <parameter name="Noise level"/>
+                <parameter name="Min m/z peak width"/>
+                <parameter name="Max m/z peak width"/>
+            </module>
+            <module name="Wavelet transform">
+                <parameter name="Noise level"/>
+                <parameter name="Scale level"/>
+                <parameter name="Wavelet window size (%)"/>
+            </module>
+            <module name="Auto">
+                <parameter name="Noise level">1000.0</parameter>
+                <parameter name="Detect isotope signals below noise level" selected="false">
+                    <parameter name="Chemical elements">H,C,N,O,S</parameter>
+                    <parameter name="m/z tolerance">
+                        <absolutetolerance>5.0E-4</absolutetolerance>
+                        <ppmtolerance>10.0</ppmtolerance>
+                    </parameter>
+                    <parameter name="Maximum charge of isotope m/z">1</parameter>
+                </parameter>
+            </module>
+        </parameter>
+        <parameter name="Denormalize fragment scans (traps)">false</parameter>
+        <parameter name="Output netCDF filename (optional)" selected="false"/>
+    </batchstep>
+    <batchstep method="io.github.mzmine.modules.dataprocessing.featdet_targeted.TargetedFeatureDetectionModule">
+        <parameter name="Raw data files" type="BATCH_LAST_FILES"/>
+        <parameter name="Scans">
+            <ms_level>1</ms_level>
+            <scan_definition/>
+        </parameter>
+        <parameter name="Name suffix">detectedPeak</parameter>
+        <parameter name="Database file">
+            <current_file>Z:\data\example\out\180228_StS_flowrate_Bd16_ctrl_rep1\profile\180228_StS_flowrate_Bd16_ctrl_rep1_mzmine_tpd.csv</current_file>
+        </parameter>
+        <parameter name="Field separator">,</parameter>
+        <parameter name="Columns">
+            <importtype column="neutral mass" datatype="io.github.mzmine.datamodel.features.types.numbers.NeutralMassType" selected="false"/>
+            <importtype column="mz" datatype="io.github.mzmine.datamodel.features.types.numbers.PrecursorMZType" selected="true"/>
+            <importtype column="rt" datatype="io.github.mzmine.datamodel.features.types.numbers.RTType" selected="true"/>
+            <importtype column="formula" datatype="io.github.mzmine.datamodel.features.types.annotations.formula.FormulaType" selected="false"/>
+            <importtype column="smiles" datatype="io.github.mzmine.datamodel.features.types.annotations.SmilesStructureType" selected="false"/>
+            <importtype column="adduct" datatype="io.github.mzmine.datamodel.features.types.annotations.iin.IonAdductType" selected="false"/>
+            <importtype column="inchi" datatype="io.github.mzmine.datamodel.features.types.annotations.InChIStructureType" selected="false"/>
+            <importtype column="inchi key" datatype="io.github.mzmine.datamodel.features.types.annotations.InChIKeyStructureType" selected="false"/>
+            <importtype column="name" datatype="io.github.mzmine.datamodel.features.types.annotations.CompoundNameType" selected="true"/>
+            <importtype column="CCS" datatype="io.github.mzmine.datamodel.features.types.numbers.CCSType" selected="false"/>
+            <importtype column="mobility" datatype="io.github.mzmine.datamodel.features.types.numbers.MobilityType" selected="false"/>
+            <importtype column="comment" datatype="io.github.mzmine.datamodel.features.types.annotations.CommentType" selected="false"/>
+        </parameter>
+        <parameter name="Intensity tolerance">0.5</parameter>
+        <parameter name="m/z tolerance">
+            <absolutetolerance>0.001</absolutetolerance>
+            <ppmtolerance>10.0</ppmtolerance>
+        </parameter>
+        <parameter name="Retention time tolerance" selected="false" unit="MINUTES">0.5</parameter>
+        <parameter name="Mobility time tolerance" selected="false"/>
+        <parameter name="Calculate adduct masses" selected="false">
+            <parameter name="MS mode">POSITIVE</parameter>
+            <parameter name="Maximum charge">2</parameter>
+            <parameter name="Maximum molecules/cluster">3</parameter>
+            <parameter name="Adducts"/>
+        </parameter>
+    </batchstep>
+    <batchstep method="io.github.mzmine.modules.io.export_features_csv.CSVExportModularModule">
+        <parameter name="Feature lists" type="BATCH_LAST_FEATURELISTS"/>
+        <parameter name="Filename">
+            <current_file>C:\data\data\sihumi\mzexport.csv</current_file>
+        </parameter>
+        <parameter name="Field separator">,</parameter>
+        <parameter name="Identification separator">;</parameter>
+        <parameter name="Remove empty columns">false</parameter>
+        <parameter name="Filter rows">ALL</parameter>
+    </batchstep>
+</batch>
