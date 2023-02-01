@@ -209,7 +209,7 @@ class FileListTable(Table):
     )      
     class Meta:
         model = Queue
-        fields = ('filename', 'project', 'total_runtime', 'summary', 'proteins', 'peptides', 'psms')
+        fields = ('filename', 'project', 'tag', 'total_runtime', 'summary', 'proteins', 'peptides', 'psms')
         attrs = {"class": "table table-hover"}
         order_by = 'id'
   

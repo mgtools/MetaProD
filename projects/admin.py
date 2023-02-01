@@ -95,6 +95,8 @@ class QueueAdmin(admin.ModelAdmin):
                 'sample', 
                 'status', 
                 'error',
+                'tag',
+                'description',
                 'skip',
                 ('date_added', 'date_finished_profile', 'date_finished_proteome'),
                 'total_runtime',
@@ -102,10 +104,10 @@ class QueueAdmin(admin.ModelAdmin):
         }),
     )
     form = QueueForm
-    list_display = ('id', 'project', 'filename', 'sample', 'status', 
+    list_display = ('id', 'project', 'filename', 'sample', 'status', 'tag', 
                     'error', 'skip', 'job')
-    list_display_links = ('id', 'project', 'filename', 'sample', 
-                          'status', 'error', 'skip', 'job')
+    list_display_links = ('id', 'project', 'filename', 'sample', 'status', 
+                          'tag', 'error', 'skip', 'job')
     readonly_fields = ('total_runtime', 'filename', 'date_added', 'date_finished_profile', 'date_finished_proteome')
 
 class EnzymeChoiceInline(admin.TabularInline):

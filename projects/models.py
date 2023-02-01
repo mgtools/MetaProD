@@ -93,7 +93,18 @@ class Queue(models.Model):
         default=0, 
         help_text="Total runtime including processing steps."
     )
-    
+    tag = models.CharField(
+        max_length=50,
+        null=True,
+        blank=True,
+        help_text="Optional tag to identify the file (e.g., phenotype)"
+    )
+    description = models.CharField(
+        max_length=100,
+        null=True,
+        blank=True,
+        help_text="Optional description for the file."
+    )
     class Meta:
         unique_together = ('project', 'filename')
         
