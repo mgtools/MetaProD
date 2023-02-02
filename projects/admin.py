@@ -21,10 +21,12 @@ from .models import (
     LabelChoice,
     Phenotype,
     Reagent,
-    Tag
+    Tag,
+    MetaData,
+    MetaDataChoice
 )
 
-from .forms import MultiplexLabelForm, MultiplexLabelInlineForm, QueueForm
+from .forms import MultiplexLabelForm, MultiplexLabelInlineForm, QueueForm, MetaDataChoiceForm
 
 admin.site.site_header = 'MetaProD Admin'
 admin.site.site_title = "MetaProD Admin"
@@ -84,9 +86,20 @@ class LabelReagentListFilter(admin.SimpleListFilter):
         if value is not None:
             return queryset.filter(reagent__name=self.value())
         return queryset
+
+class MetaDataChoiceInline(admin.TabularInline):
+    model = MetaDataChoice
+    form = MetaDataChoiceForm
+    extra = 0
+
+    def metadata(self, obj):
+        return obj.metadata.name
+        
+    def project(self, obj):
+        return obj.queue.project
         
 class QueueAdmin(admin.ModelAdmin):
-    inlines = (RunTimeInline,)
+    inlines = (RunTimeInline, MetaDataChoiceInline)
     list_filter = (ProjectListFilter,)
     fieldsets = (
         (None, {
@@ -310,7 +323,24 @@ class TagAdmin(admin.ModelAdmin):
     list_filter = (ProjectListFilter,)
     list_display = ('project', 'name')
     list_display_links = ('project', 'name')
+
+class MetaDataAdmin(admin.ModelAdmin):
+    list_filter = (ProjectListFilter,)
+    list_display = ('project', 'name')
+    list_display_links = ('project', 'name')
+
+class MetaDataChoiceAdmin(admin.ModelAdmin):
+    list_display = ('metadata', 'value')
+    list_display_links = ('metadata', 'value')
+
+    form = MetaDataChoiceForm
     
+    def metadata(self, obj):
+        return obj.metadata.name
+        
+    def project(self, obj):
+        return obj.queue.project
+        
 admin.site.register(Queue, QueueAdmin)
 admin.site.register(Project, ProjectAdmin)
 admin.site.register(Setting, SettingAdmin)
@@ -323,3 +353,4 @@ admin.site.register(Label, LabelAdmin)
 admin.site.register(Reagent, ReagentAdmin)
 admin.site.register(Phenotype, PhenotypeAdmin)
 admin.site.register(Tag, TagAdmin)
+admin.site.register(MetaData, MetaDataAdmin)

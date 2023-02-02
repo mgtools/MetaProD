@@ -13,6 +13,8 @@ rm sample.json
 rm phenotype.json
 rm queue.json
 rm tag.json
+rm metadatachoice.json
+rm metadata.json
 
 python3 manage.py dumpdata --indent=2 --natural-foreign --natural-primary projects.searchsetting -o searchsetting.json
 python3 manage.py dumpdata --indent=2 --natural-foreign --natural-primary projects.setting -o setting.json
@@ -29,3 +31,5 @@ python3 manage.py dumpdata --indent=2 --natural-foreign --natural-primary projec
 python3 manage.py dumpdata --indent=2 --natural-foreign --natural-primary projects.phenotype -o phenotype.json
 python3 manage.py dumpdata --indent=2 --natural-foreign --natural-primary projects.queue -o queue.json
 python3 manage.py dumpdata --indent=2 --natural-foreign --natural-primary projects.tag -o tag.json
+python3 manage.py dumpdata --indent=2 --natural-foreign --natural-primary projects.metadata -o metadata.json
+python3 manage.py dumpdata --indent=2 --natural-foreign --natural-primary projects.metadatachoice -o metadatachoice.json

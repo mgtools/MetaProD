@@ -605,6 +605,51 @@ class Tag(models.Model):
     def natural_key(self):
         return(self.project.name, self.name,)
     natural_key.dependencies = ['projects.project']
+
+class MetaDataManager(models.Manager):
+    def get_by_natural_key(self, project, name):
+        return self.get(project=project, name=name)
+        
+class MetaData(models.Model):
+
+    objects = MetaDataManager()
+    
+    name = models.CharField(
+        max_length=50,
+        help_text="MetaData name."
+    )
+    project = models.ForeignKey(
+        'Project',
+        on_delete=models.CASCADE,
+        help_text="Project name"
+    )
+
+    def __str__(self):
+        return self.name
+        
+    class Meta:
+        unique_together = ('name', 'project')
+
+    def natural_key(self):
+        return(self.project.name, self.name,)
+    natural_key.dependencies = ['projects.project']
+
+class MetaDataChoice(models.Model):
+
+    metadata = models.ForeignKey('MetaData', on_delete=models.CASCADE)
+    queue = models.ForeignKey('Queue', on_delete=models.CASCADE)
+    value = models.CharField(max_length=25)
+
+    def __str__(self):
+        return self.metadata.name
+        
+    class Meta:
+        unique_together = ('metadata', 'queue')
+
+    def natural_key(self):
+        return(self.project.name,) + self.metadata.natural_key() + self.queue.natural_key()
+        
+    natural_key.dependencies = ['projects.metadata', 'projects.queue']
     
 # table of phenotypes, i.e. for multiplexed samples
 class Phenotype(models.Model):

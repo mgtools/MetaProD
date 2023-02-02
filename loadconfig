@@ -13,3 +13,5 @@ python3 manage.py loaddata phenotype.json
 python3 manage.py loaddata multiplexlabel.json
 python3 manage.py loaddata labelchoice.json
 python3 manage.py loaddata tag.json
+python3 manage.py loaddata metadata.json
+python3 manage.py loaddata metadatachoice.json

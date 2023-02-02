@@ -3,7 +3,7 @@ from dal import forward
 
 from django import forms
 
-from .models import MultiplexLabel, LabelChoice, Queue
+from .models import MultiplexLabel, LabelChoice, Queue, MetaDataChoice
 
 class MultiplexLabelForm(forms.ModelForm):
 
@@ -47,6 +47,21 @@ class QueueForm(forms.ModelForm):
             'tag': autocomplete.ModelSelect2(url='queuetag',
                                              forward=('project',))
         }
+    class Media:
+        js = (
+            'linked_data.js',
+        )
+        
+class MetaDataChoiceForm(forms.ModelForm):
+
+    class Meta:
+        model = MetaDataChoice
+        fields = ('__all__')
+        widgets = {
+            'metadata': autocomplete.ModelSelect2(url='metadata',
+                                                  forward=('project',)),
+        }
+
     class Media:
         js = (
             'linked_data.js',
