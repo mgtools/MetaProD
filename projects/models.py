@@ -419,7 +419,7 @@ class Project(models.Model):
         return self.name
         
     def save(self, *args, **kwargs):
-        disallowed = ['log', 'software', 'fasta', 'temp']
+        disallowed = ['log', 'software', 'fasta', 'temp', 'metaprod']
         if self.name not in disallowed:
             super().save(*args, **kwargs)
         else:

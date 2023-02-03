@@ -99,10 +99,12 @@ class MetaDataChoiceInline(admin.TabularInline):
         return obj.queue.project
         
 class QueueAdmin(admin.ModelAdmin):
+        
     inlines = (RunTimeInline, MetaDataChoiceInline)
     list_filter = (ProjectListFilter,)
     fieldsets = (
         (None, {
+            'classes': ('wide',),
             'fields': (
                 ('project', 'job'),
                 'filename',
@@ -118,12 +120,19 @@ class QueueAdmin(admin.ModelAdmin):
         }),
     )
     form = QueueForm
-    list_display = ('id', 'project', 'filename', 'sample', 'status', 'tag', 
+    list_display = ('id', 'project', 'filename', 'get_sample', 'status', 'tag', 
                     'error', 'skip', 'job')
-    list_display_links = ('id', 'project', 'filename', 'sample', 'status', 
+    list_display_links = ('id', 'project', 'filename', 'get_sample', 'status', 
                           'tag', 'error', 'skip', 'job')
     readonly_fields = ('total_runtime', 'filename', 'date_added', 'date_finished_profile', 'date_finished_proteome')
 
+    @admin.display(ordering='sample__name', description='Sample')
+    def get_sample(self, obj):
+        if obj.sample is not None:
+            return obj.sample.name
+        else:
+            return obj.sample
+        
 class EnzymeChoiceInline(admin.TabularInline):
     model = EnzymeChoice
     extra = 0
@@ -285,6 +294,7 @@ class SampleAdmin(admin.ModelAdmin):
     list_filter = (ProjectListFilter,)
     list_display = ('project', 'name')
     list_display_links = ('project', 'name')
+    ordering = ['name']
 
 class LabelChoiceInline(admin.TabularInline, autocomplete.Select2QuerySetView):
     model = LabelChoice
