@@ -28,7 +28,9 @@ def check_status(project):
         'Ready for read_results proteome': 0,
         'Ready for process_results proteome': 0,
         'File is finished proteome step': 0,
-        'File is finished and cleaned up': 0
+        'File is finished and cleaned up': 0,
+        'Ready for MZmine profile': 0,
+        'Ready for MZmine proteome': 0
     }
     errors = 0
     for q in queue:
