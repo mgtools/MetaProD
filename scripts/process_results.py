@@ -82,10 +82,24 @@ def process_results(queue_id, type):
     # select the peptides for the file
     query = (Peptide.objects.filter(queue=queue, type=type))
 
+    # if we have no results, we can't profile, so we need to skip the
+    #  file if the profile method is file 
     if not query:
+        if searchsetting.profile_type == SearchSetting.ProfileType.FILE:
+            queue.skip = 1
+            queue.save()
         write_debug("No peptide results in database for project: %s, filename %s, type %s." % (project, filename, type), job, project)
-        return False
-        
+        end = time.time()
+        runtime = end - start
+        queue.error = 0
+        queue.save()
+        runtimex = RunTime.objects.get(queue=queue)
+        if type == 'profile':
+            runtimex.process_results_profile = runtime
+        elif type == 'proteome':
+            runtimex.process_results_proteome = runtime
+        runtimex.save()
+    
     # build the list of potential protein assignments
     accession_list = {}
     for entry in query:
@@ -194,16 +208,16 @@ def process_results(queue_id, type):
             peak_area = None
             peak_area_psm = None
         else:
-            peak_area = row['peak_area'],
-            peak_area_psm = row['peak_area_psm']
-            
+            peak_area = row['peak_area']
+            peak_area_psm = row['peak_area_psm']        
+        
         protein = Protein(queue=queue,
                           fp=fp,
                           val_num_psm=float(row['val_num_psm']),
                           val_num_peptide=row['val_num_peptide'],
                           saf=saf,
                           type=type,
-                          peak_area=peak_area,
+                          peak_area=Decimal(peak_area),
                           peak_area_psm=peak_area_psm)
         protein.save()
     

@@ -30,16 +30,19 @@ def check_status(project):
         'File is finished proteome step': 0,
         'File is finished and cleaned up': 0,
         'Ready for MZmine profile': 0,
-        'Ready for MZmine proteome': 0
+        'Ready for MZmine proteome': 0,
+        'Skipped': 0
     }
     errors = 0
     for q in queue:
-        statuses[q.get_status_display()] += 1
-        if q.error == 2:
-            errors += 1
+        if q.skip == True:
+            statuses['Skipped'] += 1
+        else:
+            statuses[q.get_status_display()] += 1
+            if q.error == 2:
+                errors += 1
     print("Queue statuses for %s:" % project)
     for s in statuses:
         if statuses[s] > 0:
             print("%s: %s" % (s, statuses[s]))
     print("Queue entries with errors: %s" % errors)
-        

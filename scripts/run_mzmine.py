@@ -99,7 +99,7 @@ def run_mzmine(queue_id):
     mz_output['rt'] = round(mz_output['rt'] / 60, 2)
     mz_output['name'] = ps_output['Spectrum Title']
     # mzmine bug workaround
-    mz_output.loc[len(mz_output.index)] = ['','','']
+    mz_output.loc[len(mz_output.index)] = ['0','0','None']
     mz_output.to_csv(r"%s%s%s_mzmine_tpd.csv" % (os.path.join(settings.data_folder, project, "out", filename, type), os.sep, filename), sep=',')
 
     # then copy the xml to run mzmine
@@ -148,17 +148,25 @@ def run_mzmine(queue_id):
                     
     tree.write(os.path.join(settings.data_folder, project, "out", filename, type, "%s_mzmine_batch.xml" % filename))
     
-    # now run the command
-    # java --enable-preview -cp "/home/jamie/metaprod_projects/software/MZmine-3.3.0/lib/app/*" io.github.mzmine.main.MZmineCore -b 
-    
-    success = run_command(["timeout", "86400", 
-                            "java", "-Xms%s" % settings.memory, "-Xmx%s" % settings.memory,
-                            "--enable-preview",
-                            "-cp", os.path.join(install_folder, "temp", project, str(job), "software", "MZmine-%s" % settings.mzmine_ver, "lib", "app", "*"),
-                            "io.github.mzmine.main.MZmineCore",
-                            "-b", "%s" % os.path.join(settings.data_folder, project, "out", filename, type, "%s_mzmine_batch.xml" % filename),
-                          ], job, project)
-                              
+    # no mzmine tpd so mzmine will fail
+    # make an empty file
+    success = 0
+    if len(mz_output.index) <= 1:
+        mzexport_csv = pd.DataFrame(columns=['1', '2', '3'])
+        mzexport_csv.loc[len(mzexport_csv.index)] = ['','','']
+        mzexport_csv.to_csv("%s%s%s_mzexport.csv" % (os.path.join(settings.data_folder, project, "out", filename, type), os.sep, filename), sep=',')
+        success = 1
+    else:
+        # now run the command
+        # java --enable-preview -cp "/home/jamie/metaprod_projects/software/MZmine-3.3.0/lib/app/*" io.github.mzmine.main.MZmineCore -b 
+        success = run_command(["timeout", "86400", 
+                                "java", "-Xms%s" % settings.memory, "-Xmx%s" % settings.memory,
+                                "--enable-preview",
+                                "-cp", os.path.join(install_folder, "temp", project, str(job), "software", "MZmine-%s" % settings.mzmine_ver, "lib", "app", "*"),
+                                "io.github.mzmine.main.MZmineCore",
+                                "-b", "%s" % os.path.join(settings.data_folder, project, "out", filename, type, "%s_mzmine_batch.xml" % filename),
+                            ], job, project)
+                                
     if success == 0 or not os.path.exists("%s%s%s_mzexport.csv" % (os.path.join(settings.data_folder, project, "out", filename, type), os.sep, filename)):
         write_debug("MZmine failed", job, project)
         return False
@@ -172,4 +180,3 @@ def run_mzmine(queue_id):
             runtimex.mzmine_proteome = runtime
         runtimex.save()
         return True
-    
