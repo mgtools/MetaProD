@@ -196,7 +196,8 @@ class ProjectAdmin(admin.ModelAdmin):
         
 class SearchSettingAdmin(admin.ModelAdmin):
     inlines = (EnzymeChoiceInline, ModChoiceInline)
-    list_display = ('project', 'modification_list', 'enzyme_list', 'multiplex',)
+    list_display = ('project', 'instrument', 'fragmentation', 'modification_list', 'enzyme_list', 'multiplex',
+                    'mzmine_run_mzmine')
     list_display_links = ('project',)
     
     def modification_list(self, obj):

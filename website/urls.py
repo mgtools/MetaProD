@@ -13,7 +13,7 @@ class QueueSample(autocomplete.Select2QuerySetView):
         qs = Sample.objects.none()
         project = self.forwarded.get('project', None)
         if project:
-            qs = Sample.objects.filter(project=project)
+            qs = Sample.objects.filter(project=project).order_by('name')
             #qs = qs.filter(project=project)
 
         return qs
@@ -23,7 +23,7 @@ class QueueTag(autocomplete.Select2QuerySetView):
         qt = Tag.objects.none()
         project = self.forwarded.get('project', None)
         if project:
-            qt = Tag.objects.filter(project=project)
+            qt = Tag.objects.filter(project=project).order_by('name')
 
         return qt
 
@@ -32,7 +32,7 @@ class QueueMetaData(autocomplete.Select2QuerySetView):
         qt = MetaData.objects.none()
         project = self.forwarded.get('project', None)
         if project:
-            qt = MetaData.objects.filter(project=project)
+            qt = MetaData.objects.filter(project=project).order_by('name')
 
         return qt
         
@@ -43,7 +43,7 @@ class MultiplexLabelSample(autocomplete.Select2QuerySetView):
         project = self.forwarded.get('project', None)
 
         if project:
-            qs = Sample.objects.filter(project=project)
+            qs = Sample.objects.filter(project=project).order_by('name')
             #qs = qs.filter(project=project)
 
         return qs
