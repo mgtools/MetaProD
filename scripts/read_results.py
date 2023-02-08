@@ -124,10 +124,8 @@ def read_results(queue_id, type):
             data_psm.iloc[:, i] = data_psm.iloc[:, i].astype(float)
             data_psm.iloc[:, i] = data_psm.iloc[:, i].replace(0, np.nan)
 
-    # can't do bulk_create due to also adding ratios
-    # this step is slow in multiplexing due to many inserts
-    # we may be able to bulk_create the ratios though
     psmratio_list = []
+    psm_list = []
     write_debug("Reading and saving PSMs (this may take some time).", job, project)
     for index, row in data_psm.iterrows():
         try:
@@ -151,11 +149,30 @@ def read_results(queue_id, type):
                   title=row['Spectrum Title'],
                   type=type,
                   peak_area = peak_area)
-        psm.save()
-        
-        # insert the reporter ratio, which is the deisotoped intensity then normalized vs reference channel
-        # (entry for that psm divided by entry for reference for that psm)
-        if searchsetting.multiplex == True:   
+        # move to bulk_create and just loop again for ratios
+        psm_list.append(psm)
+        if len(psm_list) > 1000:
+            Psm.objects.bulk_create(psm_list, ignore_conflicts=True)
+            psm_list = []
+            
+    Psm.objects.bulk_create(psm_list, ignore_conflicts=True)
+    psm_list = []
+    
+    # we have to loop again because we can't determine the psm foreign key
+    # until it has actually been inserted
+    if searchsetting.multiplex == True:   
+        write_debug("Updating PSM ratios (this may take some time).", job, project)
+        for index, row in data_psm.iterrows():
+            # queue, title, and type is probably enough but we'll add a few more 
+            # things just to make sure it finds the right one
+            psm = Psm.objects.get(queue=queue,
+                                  sequence=row['Sequence'],
+                                  mod_sequence=row['Modified Sequence'],
+                                  title=row['Spectrum Title'],
+                                  type=type)
+            # insert the reporter ratio, which is the deisotoped intensity then normalized vs reference channel
+            # (entry for that psm divided by entry for reference for that psm)
+    
             for i in range(pos2, final_pos):
                 ratio = row[i]
                 if math.isnan(ratio):
@@ -164,10 +181,8 @@ def read_results(queue_id, type):
                 psmratio_list.append(psmratio)
                 #psmratio.save()
     
-    #data_psm.to_csv('data_psm.csv')
-    
-    PsmRatio.objects.bulk_create(psmratio_list, 5000)
-    psmratio_list = []
+        PsmRatio.objects.bulk_create(psmratio_list, 5000)
+        psmratio_list = []
     
     write_debug("Determing peptides from PSM list.", job, project)
     peptides = data_psm.groupby('Modified Sequence')
@@ -175,6 +190,7 @@ def read_results(queue_id, type):
     med_ratios = {}
 
     rows_list1 = []
+    peptide_list_add = []
     for p in peptide_list:
         dict1 = {}
         # retrieve the group
@@ -222,17 +238,26 @@ def read_results(queue_id, type):
                           type=type,
                           peak_area=peak_area,
                           peak_area_psm=peak_area_psm)
-        peptide.save()
-        
-        # moved ratios to later because we need to know ppid of protein to remove contaminants
+        peptide_list_add.append(peptide)
+        if len(peptide_list) > 1000:
+            Peptide.objects.bulk_create(peptide_list_add, ignore_conflicts=True)
+            peptide_list_add = []
+            
+        # peptide.save()
 
+    Peptide.objects.bulk_create(peptide_list_add, ignore_conflicts=True)
+    peptide_list = []
+    # moved ratios to later because we need to know ppid of protein to remove contaminants
+
+    write_debug("Linking the PSMs to a peptide.", job, project)
     # link the psms to a peptide now
     query = (Psm.objects.filter(queue=queue).filter(type=type))
     for entry in query:
         peptide = Peptide.objects.get(queue=queue, mod_sequence=entry.mod_sequence, type=type)
         entry.peptide = peptide
-        entry.save()
-        
+        #entry.save()
+    Psm.objects.bulk_update(query, ['peptide'])
+    
     end = time.time()
     runtime = end - start
     queue.error = 0

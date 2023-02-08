@@ -228,7 +228,7 @@ class SearchSetting(models.Model):
     # 0: default/cid, 1: cid, 2: etd, 3: hcd, 4: uvpd
     fragmentation = models.IntegerField(
         choices=Fragmentation.choices, 
-        default=3, 
+        default=0, 
         help_text="Fragmentation method used by instrument"
     )
     # 0 ltq/ltq, 1: orbitrap, 2: tof, 3: qe

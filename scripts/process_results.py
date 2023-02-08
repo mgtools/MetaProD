@@ -208,8 +208,8 @@ def process_results(queue_id, type):
             peak_area = None
             peak_area_psm = None
         else:
-            peak_area = row['peak_area']
-            peak_area_psm = row['peak_area_psm']        
+            peak_area = Decimal(row['peak_area'])
+            peak_area_psm = row['peak_area_psm']
         
         protein = Protein(queue=queue,
                           fp=fp,
@@ -217,7 +217,7 @@ def process_results(queue_id, type):
                           val_num_peptide=row['val_num_peptide'],
                           saf=saf,
                           type=type,
-                          peak_area=Decimal(peak_area),
+                          peak_area=peak_area,
                           peak_area_psm=peak_area_psm)
         protein.save()
     
