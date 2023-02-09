@@ -68,7 +68,7 @@ def load_proteomes():
     print("Finished loading proteomes.")
 
 def load_proteins(project_name, job, fasta, accession_list):
-    write_debug("Loading proteins into database (this may take some time).", 
+    write_debug("Loading FASTA proteins into database (this may take some time).", 
         job, project_name)
     
     try:

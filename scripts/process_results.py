@@ -200,6 +200,8 @@ def process_results(queue_id, type):
     
     # calculate saf, which is #psm / protein_length
     # then create an entry for each protein
+    write_debug("Adding proteins to database.", job, project)
+    proteins_to_add = []
     for index, row in proteins.iterrows():
         accession = index
         fp = FastaProtein.objects.get(accession=accession)
@@ -219,9 +221,17 @@ def process_results(queue_id, type):
                           type=type,
                           peak_area=peak_area,
                           peak_area_psm=peak_area_psm)
-        protein.save()
+        proteins_to_add.append(protein)
+        #protein.save()
+        if len(proteins_to_add) > 1000:
+            Protein.objects.bulk_create(proteins_to_add, ignore_conflicts=True)
+            proteins_to_add = []
+
+    Protein.objects.bulk_create(proteins_to_add, ignore_conflicts=True)
+    proteins_to_add = []
     
     # update the proteininference link for the peptide now that we know what it is
+    write_debug("Updating peptides with protein inference.", job, project)
     for index, row in peptides.iterrows():
         peptide = Peptide.objects.get(id=row['peptide_id'])
         fp = FastaProtein.objects.get(accession=row['accession'])
