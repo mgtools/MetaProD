@@ -206,9 +206,9 @@ def read_results(queue_id, type):
             query = (Psm.objects.filter(queue=queue)
                                 .filter(mod_sequence=first_entry['Modified Sequence'])
                                 .filter(peak_area__gt=0)
-                                .filter(type=type))
+                                .filter(type=type)).values('peak_area')
             for entry in query:
-                peak_area += entry.peak_area
+                peak_area += entry['peak_area']
                 peak_area_psm += 1
         else:
             peak_area = None
