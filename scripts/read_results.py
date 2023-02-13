@@ -17,7 +17,7 @@ import numpy as np
 import warnings
 
 from django.core.exceptions import ObjectDoesNotExist
-from django.db.models import Sum
+from django.db.models import Sum, Count
 
 csv.field_size_limit(sys.maxsize)
 
@@ -191,6 +191,11 @@ def read_results(queue_id, type):
 
     rows_list1 = []
     peptide_list_add = []
+    peak_area_query = (Psm.objects.filter(queue=queue)
+                                .filter(peak_area__gt=0)
+                                .filter(type=type).values('mod_sequence')
+                                .annotate(peak_area_sum=Sum('peak_area'))
+                                .annotate(peak_area_count=Count('peak_area')))
     for p in peptide_list:
         dict1 = {}
         # retrieve the group
@@ -200,16 +205,13 @@ def read_results(queue_id, type):
         val_num_psm = group.shape[0]
         first_entry = group.iloc[0]
         if searchsetting.mzmine_run_mzmine == True:
-            peak_area = 0
-            peak_area_psm = 0
-
-            query = (Psm.objects.filter(queue=queue)
-                                .filter(mod_sequence=first_entry['Modified Sequence'])
-                                .filter(peak_area__gt=0)
-                                .filter(type=type)).values('peak_area')
-            for entry in query:
-                peak_area += entry['peak_area']
-                peak_area_psm += 1
+            result = next((item for item in peak_area_query if item['mod_sequence'] == first_entry['Modified Sequence']), None)
+            try:
+                peak_area = result['peak_area_sum']
+                peak_area_psm = result['peak_area_count']
+            except:
+                peak_area = None
+                peak_area_psm = None
         else:
             peak_area = None
             peak_area_psm = None
