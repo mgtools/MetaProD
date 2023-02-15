@@ -34,6 +34,7 @@ def check_status(project):
         'Skipped': 0
     }
     errors = 0
+    jobs = []
     for q in queue:
         if q.skip == True:
             statuses['Skipped'] += 1
@@ -41,8 +42,15 @@ def check_status(project):
             statuses[q.get_status_display()] += 1
             if q.error == 2:
                 errors += 1
+        if (q.get_status_display() != 'File is finished proteome step'
+            and q.get_status_display() != 'File is finished and cleaned up'
+            and q.skip == False):
+            if q.job not in jobs:
+                jobs.append(q.job)
     print("Queue statuses for %s:" % project)
     for s in statuses:
         if statuses[s] > 0:
             print("%s: %s" % (s, statuses[s]))
+    
     print("Queue entries with errors: %s" % errors)
+    print("Job IDs remaining to be processed: %s " % (','.join(str(j) for j in sorted(jobs))))
