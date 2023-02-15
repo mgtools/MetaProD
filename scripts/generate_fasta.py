@@ -160,7 +160,7 @@ def generate_proteome_fasta(project, filename, sample, have_sample):
 
     proteomes = []
     count = 0
-    current_psm = 0    
+    current_psm = 0
     if searchsetting.profile_type == SearchSetting.ProfileType.PROJECT:
         query_t = (
             Protein.objects
@@ -169,7 +169,7 @@ def generate_proteome_fasta(project, filename, sample, have_sample):
             .filter(queue__project__name=project)
             .exclude(queue__skip=True)
             .exclude(fp__ppid__proteome='0')
-            .exclude(fp__ppid__proteome='UP000005640')                    
+            .exclude(fp__ppid__proteome='UP000005640')
             .aggregate(Sum('nsaf'))
         )
         total = query_t['nsaf__sum']
@@ -182,7 +182,7 @@ def generate_proteome_fasta(project, filename, sample, have_sample):
                 .filter(queue__project__name=project)
                 .exclude(queue__skip=True)
                 .exclude(fp__ppid__proteome='0')
-                .exclude(fp__ppid__proteome='UP000005640')                        
+                .exclude(fp__ppid__proteome='UP000005640')
                 .values('fp__ppid__proteome')
                 .annotate(sum=Sum('nsaf'))
                 .order_by('-sum')

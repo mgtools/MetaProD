@@ -99,6 +99,8 @@ def process_results(queue_id, type):
         elif type == 'proteome':
             runtimex.process_results_proteome = runtime
         runtimex.save()
+        
+        return True
     
     # build the list of potential protein assignments
     accession_list = {}
