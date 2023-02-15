@@ -90,9 +90,7 @@ def read_results(queue_id, type):
     
     # no psms, so we should just skip the file as a way to give a warning
     if data_psm.shape[0] <= 1:
-        write_debug("%s has no PSMs. Automatically skipping file." % queue.filename, job, project)
-        queue.skip = True
-        queue.save()
+        write_debug("%s has no PSMs. Skipping read_results.py." % queue.filename, job, project)
         return True
     
     # load psms first
@@ -263,8 +261,6 @@ def read_results(queue_id, type):
     
     end = time.time()
     runtime = end - start
-    queue.error = 0
-    queue.save()
     runtimex = RunTime.objects.get(queue=queue)
     if type == 'profile':
         runtimex.read_results_profile = runtime

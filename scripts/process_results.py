@@ -85,21 +85,7 @@ def process_results(queue_id, type):
     # if we have no results, we can't profile, so we need to skip the
     #  file if the profile method is file 
     if not query:
-        if searchsetting.profile_type == SearchSetting.ProfileType.FILE:
-            queue.skip = 1
-            queue.save()
-        write_debug("No peptide results in database for project: %s, filename %s, type %s." % (project, filename, type), job, project)
-        end = time.time()
-        runtime = end - start
-        queue.error = 0
-        queue.save()
-        runtimex = RunTime.objects.get(queue=queue)
-        if type == 'profile':
-            runtimex.process_results_profile = runtime
-        elif type == 'proteome':
-            runtimex.process_results_proteome = runtime
-        runtimex.save()
-        
+        write_debug("No peptide results in database for project: %s, filename %s, type %s. Skipping process_results.py." % (project, filename, type), job, project)
         return True
     
     # build the list of potential protein assignments
@@ -246,8 +232,6 @@ def process_results(queue_id, type):
 
     end = time.time()
     runtime = end - start
-    queue.error = 0
-    queue.save()
     runtimex = RunTime.objects.get(queue=queue)
     if type == 'profile':
         runtimex.process_results_profile = runtime
