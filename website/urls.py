@@ -127,5 +127,5 @@ urlpatterns = [
         '^metadata/$',
         QueueMetaData.as_view(model=Queue),
         name='metadata'
-    )
+    )    
 ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

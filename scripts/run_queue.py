@@ -50,7 +50,7 @@ def run_queue(project, job):
     rerun = 1
     while rerun == 1:
         queue = (Queue.objects.filter(project__name=project, job=job)
-                              .exclude(error__gte=2)
+                              .exclude(error__gte=(1 + settings.max_retries))
                               .exclude(status=Queue.Status.FINISHED_PROF)
                               .exclude(status=Queue.Status.FINISHED_PROT)
                               .exclude(status=Queue.Status.FILE_FINISHED)
@@ -322,7 +322,7 @@ def run_queue(project, job):
             
         else:
             write_debug("Invalid status for project: %s, filename: %s" % (project, filename), job, project)
-            queue.error = 2
+            queue.error = 1 + settings.max_retries
             queue.save()
 
 # once we run update_queue final, wipe the old files

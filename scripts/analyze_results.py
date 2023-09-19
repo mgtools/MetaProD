@@ -5,6 +5,7 @@ import statistics
 import math
 import numpy as np
 from decimal import Decimal
+import warnings
 
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Sum
@@ -35,7 +36,8 @@ from projects.models import (
     MultiplexLabel, 
     Project, 
     Sample,
-    LabelChoice
+    LabelChoice,
+    Tag
 )
 
 from .run_command import write_debug, settings
@@ -66,28 +68,168 @@ def analyze_results(project):
         print("Missing searchsetting for project: %s." % project)
         return False
         
-    if searchsetting.multiplex == False:
-        print("Non-multiplex not supported yet.")
-        return
-
     # we only store the diff proteins for full-proteome
     delete = DiffProtein.objects.filter(project=project).delete()
     
-    print("Updating peptide ratios (this may take some time).")
-
-    psm_ratio_list, columns, labelchoices = load_ratios(project)
-
-    peptides_n = generate_initial_peptides(psm_ratio_list, columns)
-
-    peptide_samples = peptides_to_phenotypes(peptides_n, columns, labelchoices)
-
+    if searchsetting.multiplex == True:
+        print("Updating peptide ratios for multiplexed data (this may take some time).")
+    
+        psm_ratio_list, columns, labelchoices = load_ratios(project)
+    
+        peptides_n = generate_initial_peptides(psm_ratio_list, columns)
+    
+        peptide_samples = peptides_to_phenotypes(peptides_n, columns, labelchoices)
+    else:
+        print("Updating peptide ratios for label-free data (this may take some time).")
+        peptide_samples = generate_lf_peptides(project)
+        
     if not os.path.exists(os.path.join(settings.data_folder, project, 'results')):
         os.makedirs(os.path.join(settings.data_folder, project, 'results'))
-    peptide_samples.to_csv(os.path.join(settings.data_folder, project, 'results', 'peptide_samples.tsv'), index=False, sep='\t')
+    peptide_samples.to_csv(os.path.join(settings.data_folder, project, 'results', '%s_peptide_samples.tsv' % project), index=False, sep='\t')
     
-    if searchsetting.run_deqms == False:
-        return
+    def run_deqms_lf(phenotype):
+        print("Calculating differentially expressed proteins for %s." % phenotype)
+        
+        query = (Tag.objects.filter(project=project)
+                            .filter(t_type='Control')
+                            .values('name'))
+        if len(query) == 0:
+            print("There must be at least 1 control tag.")
+            return
+            
+        count_t = (Queue.objects.filter(project=project)
+                                .filter(tag__name=phenotype)
+                                .count())
+        if count_t == 0:
+            print("There are no samples with the %s phenotype. Skipping." % phenotype)
+            return
+            
+        ro.r('TMT_columns2_control <- data.frame(matrix(ncol=0, nrow=nrow(df.prot2)))')
+        ro.r('count_columns2_control <- data.frame(matrix(ncol=0, nrow=nrow(df.prot2)))')
+        for q in query:
+            ro.r('TMT_columns2_control = cbind(TMT_columns2_control, df.prot2[, grep("Peak.Area.*.%s$", colnames(df.prot2))])' % q['name'])
+            ro.r('count_columns2_control = cbind(count_columns2_control, df.prot2[, grep("psm.*.%s$", colnames(df.prot2), ignore.case=TRUE)])' % q['name'])
+        ro.r('TMT_columns2_treatment = df.prot2[, grep("Peak.Area.*.%s$", colnames(df.prot2))]' % phenotype)
+        ro.r('dat2 = cbind(TMT_columns2_control, TMT_columns2_treatment)')
+        ro.r('rownames(dat2) = df.prot2$accession')
+        ro.r('count_columns2_treatment = df.prot2[, grep("psm.*.%s$", colnames(df.prot2), ignore.case=TRUE)]' % phenotype)
+        ro.r('count_columns2 = cbind(count_columns2_control, count_columns2_treatment)')
+        ro.r('psm.count.table2 = data.frame(count = rowMins(as.matrix(count_columns2)), row.names =  df.prot2$accession)')
+        
+        ### done to here
+        ro.r('control2 = rep("control", each=length(TMT_columns2_control))')
+        ro.r('treatment2 = rep("treatment", each=length(TMT_columns2_treatment))')
+        ro.r('cond2 = as.factor(c(control2, treatment2))')
+        ro.r('design2 <- model.matrix(~0+cond2)')
+        ro.r('colnames(design2) = gsub("cond2","",colnames(design2))')
+        ro.r('fit12 <- lmFit(dat2, design2)')
+        ro.r('x2 <- c("treatment-control")')
+        ro.r('contrast2 = makeContrasts(contrasts=x2, levels=design2)')
+        ro.r('fit22 <- contrasts.fit(fit12, contrasts = contrast2)')
+        ro.r('fit32 <- eBayes(fit22)')
+        ro.r('fit32$count = psm.count.table2[rownames(fit32$coefficients),"count"]')
+        ro.r('fit42 = spectraCounteBayes(fit32)')
+        ro.r('DEqMS.results2 = outputResult(fit42,coef_col = 1)')
+        ro.r('fit42$p.value = fit42$sca.p')
+        ro.r('prots2 = rownames(DEqMS.results2)')
+        ro.r('protein_info2 = protein_list[protein_list$accession %in% prots2, ]')
+        ro.r('protein_info2 <- protein_info2[order(protein_info2$accession),]')
+        ro.r('DEqMS.results2["accession"] = rownames(DEqMS.results2)')
+        ro.r('DEqMS.results2 <- DEqMS.results2[order(DEqMS.results2$accession),]')
+        ro.r('protein_info2$accession <- NULL')
+        ro.r('DEqMS.results2.final = cbind(protein_info2, DEqMS.results2)')
+        ro.r('DEqMS.results2.final <- DEqMS.results2.final[, c("accession", names(DEqMS.results2.final)[names(DEqMS.results2.final) != "accession"])]')
+        ro.r('DEqMS.results2.final["gene.1"] <- NULL')
+        DEqMS_results2_final_r = ro.r('DEqMS.results2.final')
+        # write.table(DEqMS.results2.final, file="x:/DEqMS_results2_final.tsv", sep="\t", row.names=FALSE, quote=FALSE)
+        with localconverter(ro.default_converter + pandas2ri.converter):
+            DEqMS_results2_final = ro.conversion.rpy2py(DEqMS_results2_final_r)
+        DEqMS_results2_final.to_csv(os.path.join(settings.data_folder, project, 'results', '%s_DEqMS_results_final_%s.tsv' % (project, phenotype)), index=False, sep='\t')
+        # load results to database  
+        # in this case, we're just going to link the files and not store it in a table
+        # however, we can store the diff protein results because the columns are the same each time  
+        diffprotein_list = []
+        project_ = Project.objects.get(name=project)
+        for index, row in DEqMS_results2_final.iterrows():
+            fp = FastaProtein.objects.get(accession=row['accession'])
+            diffprotein = DiffProtein(fp=fp, project=project_, logfc=row['logFC'],
+                                    p_value=row['adj.P.Val'], d_p_value=row['sca.adj.pval'])
+            diffprotein_list.append(diffprotein)
+        DiffProtein.objects.bulk_create(diffprotein_list, 5000)
 
+    def run_deqms_mp(phenotype):
+        print("Calculating differentially expressed proteins for %s." % phenotype)
+        
+        query = (Tag.objects.filter(project=project)
+                            .filter(t_type='Control')
+                            .values('name'))
+        if len(query) == 0:
+            print("There must be at least 1 control tag.")
+            return
+            
+        count_t = (Queue.objects.filter(project=project)
+                                .filter(tag__name=phenotype)
+                                .count())
+        if count_t == 0:
+            print("There are no samples with the %s phenotype. Skipping." % phenotype)
+            return
+            
+        ro.r('TMT_columns2_control <- data.frame(matrix(ncol=0, nrow=nrow(df.prot2)))')
+        ro.r('count_columns2_control <- data.frame(matrix(ncol=0, nrow=nrow(df.prot2)))')
+        for q in query:
+            ro.r('TMT_columns2_control = cbind(TMT_columns2_control, df.prot2[, grep("Peak.Area.*.%s$", colnames(df.prot2))])' % q['name'])
+            ro.r('count_columns2_control = cbind(count_columns2_control, df.prot2[, grep("psm.*.%s$", colnames(df.prot2), ignore.case=TRUE)])' % q['name'])
+        ro.r('TMT_columns2_treatment = df.prot2[, grep("Peak.Area.*.%s$", colnames(df.prot2))]' % phenotype)
+        ro.r('dat2 = cbind(TMT_columns2_control, TMT_columns2_treatment)')
+        ro.r('rownames(dat2) = df.prot2$accession')
+        ro.r('count_columns2_treatment = df.prot2[, grep("psm.*.%s$", colnames(df.prot2), ignore.case=TRUE)]' % phenotype)
+        ro.r('count_columns2 = cbind(count_columns2_control, count_columns2_treatment)')
+        ro.r('psm.count.table2 = data.frame(count = rowMins(as.matrix(count_columns2)), row.names =  df.prot2$accession)')
+        # normalize
+        ro.r('dat2 = equalMedianNormalization(dat2)')
+        # drop na although with pemm, this shouldn't happen
+        ro.r('dat2 = na.omit(dat2)')
+        ro.r('control2 = rep("control", each=length(TMT_columns2_control))')
+        ro.r('treatment2 = rep("treatment", each=length(TMT_columns2_treatment))')
+        ro.r('cond2 = as.factor(c(control2, treatment2))')
+        ro.r('design2 <- model.matrix(~0+cond2)')
+        ro.r('colnames(design2) = gsub("cond2","",colnames(design2))')
+        ro.r('x2 = "treatment-control"')
+        ro.r('contrast2 = makeContrasts(contrasts=x2, levels=design2)')
+        ro.r('fit12 <- lmFit(dat2, design2)')
+        ro.r('fit22 <- contrasts.fit(fit12, contrasts = contrast2)')
+        ro.r('fit32 <- eBayes(fit22)')
+        ro.r('fit32$count = psm.count.table2[rownames(fit32$coefficients),"count"]')
+        ro.r('fit42 = spectraCounteBayes(fit32)')
+        ro.r('DEqMS.results2 = outputResult(fit42,coef_col = 1)')
+        ro.r('fit42$p.value = fit42$sca.p')
+        ro.r('prots2 = rownames(DEqMS.results2)')
+        ro.r('protein_info2 = protein_list[protein_list$accession %in% prots2, ]')
+        ro.r('protein_info2 <- protein_info2[order(protein_info2$accession),]')
+        ro.r('DEqMS.results2["accession"] = rownames(DEqMS.results2)')
+        ro.r('DEqMS.results2 <- DEqMS.results2[order(DEqMS.results2$accession),]')
+        ro.r('protein_info2$accession <- NULL')
+        ro.r('DEqMS.results2.final = cbind(protein_info2, DEqMS.results2)')
+        # move accession to the front
+        ro.r('DEqMS.results2.final <- DEqMS.results2.final[, c("accession", names(DEqMS.results2.final)[names(DEqMS.results2.final) != "accession"])]')
+        ro.r('DEqMS.results2.final["gene.1"] <- NULL')
+        DEqMS_results2_final_r = ro.r('DEqMS.results2.final')
+        # write.table(DEqMS.results2.final, file="x:/DEqMS_results2_final.tsv", sep="\t", row.names=FALSE, quote=FALSE)
+        with localconverter(ro.default_converter + pandas2ri.converter):
+            DEqMS_results2_final = ro.conversion.rpy2py(DEqMS_results2_final_r)
+        DEqMS_results2_final.to_csv(os.path.join(settings.data_folder, project, 'results', '%s_DEqMS_results_final_%s.tsv' % (project, phenotype)), index=False, sep='\t')
+        # load results to database
+        # in this case, we're just going to link the files and not store it in a table
+        # however, we can store the diff protein results because the columns are the same each time  
+        diffprotein_list = []
+        project_ = Project.objects.get(name=project)
+        for index, row in DEqMS_results2_final.iterrows():
+            fp = FastaProtein.objects.get(accession=row['accession'])
+            diffprotein = DiffProtein(fp=fp, project=project_, logfc=row['logFC'],
+                                    p_value=row['adj.P.Val'], d_p_value=row['sca.adj.pval'])
+            diffprotein_list.append(diffprotein)
+        DiffProtein.objects.bulk_create(diffprotein_list, 5000)        
+        
     print("Note: There may be some R warrnings or messages that can be ignored.")
     print("Running PEMM (this may take some time).")
     load_pemm()
@@ -100,14 +242,25 @@ def analyze_results(project):
     # load peptide ratios
     #df.pep = read.table('x:/co_3_c4_10ppm/peptide_samples.csv', sep='\t', quote="", header=TRUE)
     # df.pep = read.table('z:/data/arsenic_c4_10ppm/results/peptide_samples_modified.tsv', sep='\t', quote="", header=TRUE)
-    # we don't want the reference columns in analysis
-    ro.r('reference = df.pep[, grep("Reference", colnames(df.pep))]')
-    ro.r('reference[colnames(reference)[2]] = log2(reference[colnames(reference)[2]])')
-    ro.r('df.pep = df.pep[, -grep("Reference", colnames(df.pep))]')
-    # find the ratio columns    
-    ro.r('ratio_columns = grep(".ratio.", colnames(df.pep))')
-    # find psm columns
-    ro.r('psm_columns = grep(".psm.", colnames(df.pep))')
+    # df.pep = read.table('x:/co_3_c4_10ppm/peptide_samples.csv', sep='\t', quote="", header=TRUE)
+    if searchsetting.multiplex == True:
+        query = (Tag.objects.filter(project=project)
+                            .filter(t_type='Reference')
+                            .values('phenotype'))
+        # we don't want the reference columns in analysis but store them for later
+        ro.r('reference <- data.frame(matrix(ncol=0, nrow=nrow(df.pep)))')
+        for q in query:
+            ro.r('reference = cbind(reference, df.pep[, grep("%s", colnames(df.pep))])' % q['phenotype'])
+            # we only want the log of the Reference ratio columns and not PSM
+            ro.r('reference[grep("ratio.%s", colnames(reference))] = log2(reference[grep("ratio.%s", colnames(reference))])')
+            ro.r('df.pep = df.pep[, -grep("%s", colnames(df.pep))]' % q['phenotype'])
+        # find the ratio columns    
+        ro.r('ratio_columns = grep(".ratio.", colnames(df.pep), ignore.case=TRUE)')
+        ro.r('psm_columns = grep(".psm.", colnames(df.pep), ignore.case=TRUE)')
+        # find psm columns
+    else:
+        ro.r('ratio_columns = grep("Peak.Area.", colnames(df.pep))')
+        ro.r('psm_columns = grep("psm.", colnames(df.pep), ignore.case=TRUE)')
     # select the ratio columns from the data
     ro.r('dat.pep.ratio=df.pep[ratio_columns]')
     # count non ratio columns
@@ -117,7 +270,7 @@ def analyze_results(project):
     ro.r('dat.filtered = dat.pep.ratio[dat.pep.ratio["count"] >= %s,]' % threshold)
     # remove the count column
     ro.r('dat.filtered["count"] <- NULL')
-    # log2 transform
+    # label-free is already transformed
     ro.r('dat.filtered.log2 = log2(dat.filtered)')
     # run PEMM on the log2 transformed data
     ro.r('PEM.result = PEMM_fun(as.matrix(dat.filtered.log2), phi=0)')
@@ -134,18 +287,36 @@ def analyze_results(project):
     ro.r('data_columns = df.pep[rows, 1:5]')
     ro.r('peptide_final = cbind(data_columns, PEM.final, psm_data)')
     # re-add the reference data in case somebody wants to use it
-    ro.r('reference = reference[rows,]')
-    peptide_final = ro.r('peptide_final = cbind(peptide_final, reference)')
+    if searchsetting.multiplex == True:
+        ro.r('reference = reference[rows,]')
+        peptide_final = ro.r('peptide_final = cbind(peptide_final, reference)')
+    else:
+        peptide_final = ro.r('peptide_final')
     with localconverter(ro.default_converter + pandas2ri.converter):
         peptides_final = ro.conversion.rpy2py(peptide_final)
-    peptides_final.to_csv(os.path.join(settings.data_folder, project, 'results', 'peptides_final.tsv'), index=False, sep='\t')
+    peptides_final.to_csv(os.path.join(settings.data_folder, project, 'results', '%s_peptides_final.tsv' % project), index=False, sep='\t')
+
     #ro.r('write.table(peptide_final, file="x:/peptides_final.tsv", sep="\t", row.names=FALSE)')
     ro.r('PEM.final["accession"] = df.pep[rows, "accession"]')
     ro.r('psm_data["accession"] = df.pep[rows, "accession"]')
     # aggregate all the data
     # these should result in things being in the same order so we should be able
     # to merge the two
-    ro.r('df.prot2.ratio = aggregate(PEM.final[,1:ncol(PEM.final)-1], by=list(PEM.final$accession), FUN=median)')
+    if searchsetting.multiplex == True:
+        ro.r('df.prot2.ratio = aggregate(PEM.final[,1:ncol(PEM.final)-1], by=list(PEM.final$accession), FUN=median)')
+    else:
+        # for lf, we want to convert back to non-log then add them
+        ro.r('PEM.final.unlog = PEM.final')
+        ro.r('ratio_columns_prot = grep("Peak.Area.", colnames(PEM.final.unlog))')
+        ro.r('PEM.final.unlog = PEM.final.unlog[ratio_columns_prot]')
+        ro.r('PEM.final.unlog = 2^PEM.final.unlog')
+        ro.r('PEM.final.unlog["accession"] = PEM.final$accession')
+        ro.r('df.prot2.ratio = aggregate(PEM.final.unlog[,1:ncol(PEM.final.unlog)-1], by=list(PEM.final.unlog$accession), FUN=sum)')
+        # now re transform to log2
+        ro.r('Group.1 = df.prot2.ratio$Group.1')
+        ro.r('df.prot2.ratio$Group.1 <- NULL')
+        ro.r('df.prot2.ratio = log2(df.prot2.ratio)')
+        ro.r('df.prot2.ratio = cbind(Group.1, df.prot2.ratio)')
     ro.r('df.prot2.psm = aggregate(psm_data[,1:ncol(psm_data)-1], by=list(psm_data$accession), FUN=sum)')
     # now we need to pull the protein information from a previous table
     ro.r('protein_list = df.pep[!duplicated(df.pep$accession),][2:5]')
@@ -160,77 +331,46 @@ def analyze_results(project):
     # drop group.1
     ro.r('df.prot2$Group.1 <- NULL')
     ro.r('df.prot2$Group.1 <- NULL')
+    #if searchsetting.multiplex == True:
+    #    ro.r('df.prot2$Group.1 <- NULL')
     df_prot2 = ro.r('df.prot2')
     # save the results and also bring the dataframe into python
     with localconverter(ro.default_converter + pandas2ri.converter):
         proteins_final = ro.conversion.rpy2py(df_prot2)
-    proteins_final.to_csv(os.path.join(settings.data_folder, project, 'results', 'proteins_final.tsv'), index=False, sep='\t')
+    proteins_final.to_csv(os.path.join(settings.data_folder, project, 'results', '%s_proteins_final.tsv' % project), index=False, sep='\t')
+
+    # this is useful if one wants to manually analyze the data
+    #if searchsetting.run_deqms == False:
+    #    return
 
     print("Running DEqMS.")
-    load_deqms()        
+    load_deqms()
     # deqms part
     # select the ratio and treatment columns
     # if there are more phenotypes, one would select those too
     ro.r('library(matrixStats)')
-    ro.r('TMT_columns2_treatment = grep("ratio.Treatment$", colnames(df.prot2))')
-    ro.r('TMT_columns2_control = grep("ratio.Control$", colnames(df.prot2))')
-    ro.r('TMT_columns2 = c(TMT_columns2_control, TMT_columns2_treatment)')
-    ro.r('dat2=df.prot2[TMT_columns2]')
-    ro.r('rownames(dat2) = df.prot2$accession')
-    # normalize
-    ro.r('dat2 = equalMedianNormalization(dat2)')
-    # drop na although with pemm, this shouldn't happen
-    ro.r('dat2 = na.omit(dat2)')
-    # for more phenotypes, repeat this for each name above
-    ro.r('control2 = rep("control", each=length(TMT_columns2_control))')
-    ro.r('treatment2 = rep("treatment", each=length(TMT_columns2_treatment))')
-    # add factors for more phenotypes
-    ro.r('cond2 = as.factor(c(control2, treatment2))')
-    ro.r('design2 <- model.matrix(~0+cond2)')
-    ro.r('colnames(design2) = gsub("cond2","",colnames(design2))')
-    # for additional phenotypes, add them here, eg. x2 <- c("p1-ctrl", "p2-ctrl")
-    ro.r('x2 = "treatment-control"')
-    ro.r('contrast2 = makeContrasts(contrasts=x2, levels=design2)')
-    ro.r('fit12 <- lmFit(dat2, design2)')
-    ro.r('fit22 <- contrasts.fit(fit12, contrasts = contrast2)')
-    ro.r('fit32 <- eBayes(fit22)')
-    # add psm counts for more phenotypes
-    ro.r('count_columns2_control = grep("psm.Control$", colnames(df.prot2))')
-    ro.r('count_columns2_treatment = grep("psm.Treatment$", colnames(df.prot2))')
-    ro.r('count_columns2 = c(count_columns2_control, count_columns2_treatment)')
-    ro.r('psm.count.table2 = data.frame(count = rowMins(as.matrix(df.prot2[,count_columns2])), row.names =  df.prot2$accession)')
-    ro.r('fit32$count = psm.count.table2[rownames(fit32$coefficients),"count"]')
-    ro.r('fit42 = spectraCounteBayes(fit32)')
-    ro.r('DEqMS.results2 = outputResult(fit42,coef_col = 1)')
-    ro.r('fit42$p.value = fit42$sca.p')
-    ro.r('prots2 = rownames(DEqMS.results2)')
-    ro.r('protein_info2 = protein_list[protein_list$accession %in% prots2, ]')
-    ro.r('protein_info2 <- protein_info2[order(protein_info2$accession),]')
-    ro.r('DEqMS.results2["accession"] = rownames(DEqMS.results2)')
-    ro.r('DEqMS.results2 <- DEqMS.results2[order(DEqMS.results2$accession),]')
-    ro.r('protein_info2$accession <- NULL')
-    ro.r('DEqMS.results2.final = cbind(protein_info2, DEqMS.results2)')
-    # move accession to the front
-    ro.r('DEqMS.results2.final <- DEqMS.results2.final[, c("accession", names(DEqMS.results2.final)[names(DEqMS.results2.final) != "accession"])]')
-    ro.r('DEqMS.results2.final["gene.1"] <- NULL')
-    DEqMS_results2_final_r = ro.r('DEqMS.results2.final')
-    # write.table(DEqMS.results2.final, file="x:/DEqMS_results2_final.tsv", sep="\t", row.names=FALSE, quote=FALSE)
-    with localconverter(ro.default_converter + pandas2ri.converter):
-        DEqMS_results2_final = ro.conversion.rpy2py(DEqMS_results2_final_r)
-    DEqMS_results2_final.to_csv(os.path.join(settings.data_folder, project, 'results', 'DEqMS_results_final.tsv'), index=False, sep='\t')
 
-    # load results to database
-    # in this case, we're just going to link the files and not store it in a table
-    # however, we can store the diff protein results because the columns are the same each time  
-    diffprotein_list = []
-    project_ = Project.objects.get(name=project)
-    for index, row in DEqMS_results2_final.iterrows():
-        fp = FastaProtein.objects.get(accession=row['accession'])
-        diffprotein = DiffProtein(fp=fp, project=project_, logfc=row['logFC'],
-                                  p_value=row['adj.P.Val'], d_p_value=row['sca.adj.pval'])
-        diffprotein_list.append(diffprotein)
-    DiffProtein.objects.bulk_create(diffprotein_list, 5000)
-    
+    phenotypes = (Tag.objects.filter(project=project)
+                             .filter(t_type='Treatment')
+                             .values('name'))
+    if len(phenotypes) == 0:
+        print("There must be at least 1 treatment tag.")
+        return
+     
+    query = (Tag.objects.filter(project=project)
+                            .filter(t_type='Control')
+                            .values('name'))
+    if len(query) == 0:
+        print("There must be at least 1 control tag.")
+        return
+            
+    if searchsetting.multiplex == True:
+        for pt in phenotypes:
+            run_deqms_mp(pt['name'])
+    else:
+        for pt in phenotypes:
+            run_deqms_lf(pt['name'])
+
 def load_deqms():
     utils.chooseCRANmirror(ind=1)
     packnames = ('BiocManager', 'matrixStats')
@@ -257,6 +397,8 @@ def load_ratios(project):
     query = (PsmRatio.objects.filter(psm__queue__project__name=project)
                              .filter(psm__type="proteome")
                              .exclude(psm__peptide__protein__fp__ppid='0')
+                             .exclude(psm__queue__skip=True)
+                             .exclude(psm__queue__error__gte=(1 + settings.max_retries))
                              .values('psm_id', 'psm__peptide__id', 'ratio', 'label',
                                      'psm__peptide__protein__fp__accession',
                                      'psm__peptide__protein__fp__ppid',
@@ -384,3 +526,78 @@ def peptides_to_phenotypes(peptides_n, columns, labelchoices):
     peptide_samples = peptide_samples.reset_index()
  
     return(peptide_samples)
+    
+def generate_lf_peptides(project):
+    query = (Peptide.objects.filter(queue__project__name=project)
+                            .filter(type="proteome")
+                            .filter(peak_area_psm__gt=0)
+                            .exclude(protein__fp__ppid='0')
+                            .exclude(queue__skip=True)
+                            .exclude(queue__error__gte=(1 + 2))
+                            .values('mod_sequence',
+                                    'protein__fp__accession',
+                                    'protein__fp__gene',
+                                    'protein__fp__description',
+                                    'protein__fp__ppid',
+                                    'peak_area_psm',
+                                    'queue__sample__name',
+                                    'queue__filename',
+                                    'queue__tag__name',
+                                    'peak_area'))
+            
+    peptide_list = pd.DataFrame(list(query))
+
+    peptide_list = peptide_list.rename(columns={'mod_sequence': 'sequence',    
+                                                'protein__fp__accession': 'accession',
+                                                'protein__fp__gene': 'gene',
+                                                'protein__fp__description': 'description',
+                                                'protein__fp__ppid': 'ppid',
+                                                'peak_area_psm': 'psm',
+                                                'queue__sample__name': 'sample',
+                                                'queue__filename': 'filename',
+                                                'queue__tag__name': 'tag',
+                                                })
+    
+    rows_list = []
+    for index, row in peptide_list.iterrows():
+        dict1 = {}
+        # maybe try to do this as a dict/list to build a new dataframe then concat them
+        if row['sample'] is not None:
+            new_column_1 = "Peak Area %s %s" % (str(row['sample']), str(row['tag']))
+            new_column_2 = "PSM %s %s" % (str(row['sample']), str(row['tag']))
+        else:
+            new_column_1 = "Peak Area %s %s" % (str(row['filename']), str(row['tag']))
+            new_column_2 = "PSM %s %s" % (str(row['filename']), str(row['tag']))
+        # revert log2 transformation and we'll transform again later
+        dict1.update({new_column_1:row['peak_area'], new_column_2:row['psm']})
+        rows_list.append(dict1)
+        #peptide_list.loc[index, new_column_1] = row['peak_area']
+        #peptide_list.loc[index, new_column_2] = row['psm']
+    
+    peak_area_df = pd.DataFrame(rows_list)
+    peptide_list = pd.concat([peptide_list, peak_area_df], axis='columns')
+    peptide_list = peptide_list.drop(columns=['sample', 'tag', 'peak_area', 'filename', 'psm'])
+    
+    # turn ratio/label columns into separate columns per label
+#    peptide_list = peptide_list.pivot(index=['id', 
+                                             #'sequence',
+                                             #'accession',
+                                             #'gene',
+                                             #'description',
+                                             #'ppid',
+#
+                                                 #'sample'], 
+                                            #columns='label', values='ratio')
+    #psm_ratio_list = psm_ratio_list.reset_index()
+
+    data_cols = list(sorted(peptide_list.columns[5:]))
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=RuntimeWarning)  
+        peptide_list = peptide_list.groupby(['sequence',
+                                            'accession',
+                                            'gene',
+                                            'description',
+                                            'ppid']).agg({**{e: 'median' for e in data_cols}})
+    peptide_list = peptide_list.reset_index()
+
+    return(peptide_list)

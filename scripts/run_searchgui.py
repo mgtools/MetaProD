@@ -142,7 +142,8 @@ def run_searchgui(queue_id):
                             "-max_isotope", "%s" % searchsetting.isotope_max,
                             "-msgf_instrument", "%s" % searchsetting.instrument,
                             "-msgf_fragmentation", "%s" % searchsetting.fragmentation,
-                            "-simplify_groups", "0"
+                            "-simplify_groups", "0",
+                            "-comet_batch_size", "10000"
                           ], job, project)
     
     if success == 0 or not os.path.exists("%s%s%s_%s.par" % (os.path.join(settings.data_folder, project, "out", filename, type), os.sep, project, type)):

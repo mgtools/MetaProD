@@ -127,7 +127,8 @@ def read_results(queue_id, type):
     write_debug("Reading and saving PSMs (this may take some time).", job, project)
     for index, row in data_psm.iterrows():
         try:
-            peak_area = math.log2(data_psm_pa[data_psm_pa['compound_db_identity:compound_name'] == row['Spectrum Title']]['area'].values[0])
+            #peak_area = math.log2(data_psm_pa[data_psm_pa['compound_db_identity:compound_name'] == row['Spectrum Title']]['area'].values[0])
+            peak_area = data_psm_pa[data_psm_pa['compound_db_identity:compound_name'] == row['Spectrum Title']]['area'].values[0]
         except:
             # set to 0 if mzmine didn't find a peak
             peak_area = None
@@ -193,7 +194,8 @@ def read_results(queue_id, type):
                                 .filter(peak_area__gt=0)
                                 .filter(type=type).values('mod_sequence')
                                 .annotate(peak_area_sum=Sum('peak_area'))
-                                .annotate(peak_area_count=Count('peak_area')))
+                                .annotate(peak_area_count=Count('peak_area'))
+                                .order_by('mod_sequence'))
     for p in peptide_list:
         dict1 = {}
         # retrieve the group
@@ -257,7 +259,7 @@ def read_results(queue_id, type):
         peptide = Peptide.objects.get(queue=queue, mod_sequence=entry.mod_sequence, type=type)
         entry.peptide = peptide
         #entry.save()
-    Psm.objects.bulk_update(query, ['peptide'])
+    Psm.objects.bulk_update(query, ['peptide'], batch_size=1000)
     
     end = time.time()
     runtime = end - start

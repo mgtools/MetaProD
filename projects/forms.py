@@ -24,11 +24,16 @@ class MultiplexLabelInlineForm(forms.ModelForm):
     class Meta:
         model = LabelChoice
         fields = ('__all__')
-        forwards = ['labelchoice_set-'+str(i)+'-label' for i in range(10)]
+        # this is a workaround for a limitation
+        # 20 needs to be increased if we have more labels
+        forwards = ['labelchoice_set-'+str(i)+'-label' for i in range(20)]
         forwards.append('reagent')
+        forwards.append('project')
         widgets = {
             'label': autocomplete.ModelSelect2(url='multiplexlabelreagent',
                                               forward=forwards),
+            'tag': autocomplete.ModelSelect2(url='queuetag',
+                                             forward=forwards)
         }        
         
     class Media:

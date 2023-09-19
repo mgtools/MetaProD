@@ -19,7 +19,6 @@ from .models import (
     MultiplexLabel,
     Label,
     LabelChoice,
-    Phenotype,
     Reagent,
     Tag,
     MetaData,
@@ -99,7 +98,7 @@ class MetaDataChoiceInline(admin.TabularInline):
         return obj.queue.project
         
 class QueueAdmin(admin.ModelAdmin):
-        
+
     inlines = (RunTimeInline, MetaDataChoiceInline)
     list_filter = (ProjectListFilter,)
     fieldsets = (
@@ -132,7 +131,7 @@ class QueueAdmin(admin.ModelAdmin):
             return obj.sample.name
         else:
             return obj.sample
-        
+
 class EnzymeChoiceInline(admin.TabularInline):
     model = EnzymeChoice
     extra = 0
@@ -332,8 +331,8 @@ class ReagentAdmin(admin.ModelAdmin):
 
 class TagAdmin(admin.ModelAdmin):
     list_filter = (ProjectListFilter,)
-    list_display = ('project', 'name')
-    list_display_links = ('project', 'name')
+    list_display = ('project', 'name', 't_type')
+    list_display_links = ('project', 'name', 't_type')
 
 class MetaDataAdmin(admin.ModelAdmin):
     list_filter = (ProjectListFilter,)
@@ -362,6 +361,5 @@ admin.site.register(MultiplexLabel, MultiplexLabelAdmin)
 admin.site.register(Sample, SampleAdmin)
 admin.site.register(Label, LabelAdmin)
 admin.site.register(Reagent, ReagentAdmin)
-admin.site.register(Phenotype, PhenotypeAdmin)
 admin.site.register(Tag, TagAdmin)
 admin.site.register(MetaData, MetaDataAdmin)

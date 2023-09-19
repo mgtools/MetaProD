@@ -417,14 +417,15 @@ class Project(models.Model):
 
     def __str__(self):
         return self.name
-        
+    
+    # this is just to avoid some potential issues
     def save(self, *args, **kwargs):
         disallowed = ['log', 'software', 'fasta', 'temp', 'metaprod']
         if self.name not in disallowed:
             super().save(*args, **kwargs)
         else:
             return
-        
+
 class Setting(models.Model):
     server = models.CharField(max_length=100, primary_key=True)
     install_folder = models.CharField(
@@ -583,6 +584,12 @@ class TagManager(models.Manager):
         
 class Tag(models.Model):
 
+    class TagType(models.TextChoices):
+        CONTROL = 'Control'
+        TREATMENT = 'Treatment'
+        REFERENCE = 'Reference'
+        OTHER = 'Other'
+        
     objects = TagManager()
         
     name = models.CharField(
@@ -590,11 +597,17 @@ class Tag(models.Model):
         help_text="Name of tag."
     )
     project = models.ForeignKey(
-        'Project', 
+        'projects.Project', 
         on_delete=models.CASCADE, 
         help_text="Project name"
     )
     description = models.CharField(max_length=100, blank=True, null=True)
+    
+    t_type = models.TextField(
+        choices=TagType.choices,
+        help_text="Type of tag. Use control for control, treatment for treatments, reference for reference, and other for tags not used in analysis.",
+        verbose_name="Type"
+    )
     
     def __str__(self):
         return self.name
@@ -650,24 +663,7 @@ class MetaDataChoice(models.Model):
         return(self.project.name,) + self.metadata.natural_key() + self.queue.natural_key()
         
     natural_key.dependencies = ['projects.metadata', 'projects.queue']
-    
-# table of phenotypes, i.e. for multiplexed samples
-class Phenotype(models.Model):
-    phenotype = models.CharField(
-        max_length=255, 
-        help_text="Phenotype (i.e. normal, cancer, reference)",
-        primary_key=True
-    )
-    description = models.CharField(
-        max_length=100, 
-        blank=True, 
-        null=True, 
-        help_text="Phenotype description."
-    )
-
-    def __str__(self):
-        return self.phenotype
-        
+ 
 class MultiplexLabel(models.Model):
     project = models.ForeignKey('projects.Project', on_delete=models.CASCADE)
     # filename: 01CPTAC_COprospective_Proteome_PNNL_20170123
@@ -681,12 +677,17 @@ class MultiplexLabel(models.Model):
         
 class LabelChoice(models.Model):
     multiplexlabel = models.ForeignKey('MultiplexLabel', on_delete=models.CASCADE)
-    label = models.ForeignKey('Label', on_delete=models.CASCADE)
+    label = models.ForeignKey(
+        'Label', 
+        on_delete=models.CASCADE,
+        help_text="Label, i.e., TMT-127."
+    )
     # phenotype: colon, normal, reference, etc.
-    phenotype = models.ForeignKey(
-        'projects.Phenotype', 
+    tag = models.ForeignKey(
+        'projects.Tag', 
         on_delete=models.SET_NULL, 
-        null=True
+        null=True,
+        help_text="Tag for the label, i.e., the phenotype."
     )
     identifier = models.CharField(
         max_length=255, 

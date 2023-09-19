@@ -146,8 +146,8 @@ def generate_file_queue(project, jobs):
         print("The project has no new files and has not completed the profile or proteome steps.")
         queue = (Queue.objects.filter(project__name=project))
         for c in queue:
-            if c.error >= 2:
-                print("Warning: %s has error status 2 and cannot be processed." % (c.filename))
+            if c.error >= (1 + settings.max_retries):
+                print("Warning: %s has error status exceeding the max attempts (%s) and cannot be processed." % (c.filename, (1 + settings.max_retries)))
         
 def add_file_to_queue(filename, project, status, job):  
     # we only want the basename without path or raw

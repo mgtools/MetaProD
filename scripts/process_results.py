@@ -75,8 +75,8 @@ def process_results(queue_id, type):
         write_debug("Project: %s, filename %s, type %s is set to be skipped. Unskip to continue." % (project, filename, type), job, project)
         return False
         
-    if queue.error >= 2:
-        write_debug("Project: %s, filename %s, type %s has an error status of 2 or higher. Reset error to continue." % (project, filename, type), job, project)
+    if queue.error >= 1 + settings.max_retries:
+        write_debug("Project: %s, filename %s, type %s has an error status of %s or higher. Reset error to continue." % (project, filename, type, (1 + settings.max_retries)), job, project)
         return False
         
     # select the peptides for the file
@@ -253,7 +253,7 @@ def calculate_nsaf(project, type):
     queryq = (
         Queue.objects.filter(project__name=project, 
                              status__gte=status)
-                     .exclude(error__gte=2)
+                     .exclude(error__gte=(1 + settings.max_retries))
                      .exclude(skip=True)
     )
     
@@ -294,7 +294,7 @@ def calculate_species_summary(project, type):
     query = (Protein.objects.filter(queue__project__name=project)
                             .filter(type=type)
                             .exclude(queue__skip=True)
-                            .exclude(queue__error__gte=2)
+                            .exclude(queue__error__gte=(1 + settings.max_retries))
                             .values('fp__ppid__proteome')
                             .annotate(total_psm=Sum('val_num_psm'), 
                                       total_pep=Sum('val_num_peptide'), 
