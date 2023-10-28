@@ -9,6 +9,7 @@ import csv
 from pathlib import Path
 import urllib.request
 from Bio import SeqIO
+import pandas as pd
 
 from django.db.models import Sum
 from django.core.exceptions import ObjectDoesNotExist
@@ -360,6 +361,9 @@ def generate_proteome_fasta(project, filename, sample, have_sample):
     
     if searchsetting.use_human == True:
         print("Appending human proteome to FASTA file.")
+        if not os.path.exists("%s%shuman.fasta" % (os.path.join(settings.install_folder, "fasta"), os.sep)):
+            print("human.fasta does not exist. Remove full.fasta.gz and run generate_fasta again.")
+            return
         with open(fasta_file, "a") as f_out:
             with open(os.path.join(settings.install_folder, "fasta", "human.fasta"), "r") as f_in:
                 shutil.copyfileobj(f_in, f_out)
@@ -413,6 +417,9 @@ def generate_profile_fasta(project):
 
     if searchsetting.use_human == True:
         print("Appending human proteome to FASTA file.")
+        if not os.path.exists("%s%shuman.fasta" % (os.path.join(settings.install_folder, "fasta"), os.sep)):
+            print("human.fasta does not exist. Remove full.fasta.gz and run generate_fasta again.")
+            return
         with open(fasta_file, "a") as f_out:
             with open(os.path.join(settings.install_folder, "fasta", "human.fasta"), "r") as f_in:
                 shutil.copyfileobj(f_in, f_out)
@@ -479,7 +486,7 @@ def download_profile_fasta():
         print("PPMembership.txt already exists. Remove to update.")
     else:
         print("Downloading PPMembership.txt from uniprot.")
-        # need to use different url until uniprot is fixed
+        # sometimes need to use different url
         #pp_membership_url = "https://proteininformationresource.org/rps/data/new/PPSeqCurrent/PPMembership.txt"
         pp_membership_url = "https://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/pan_proteomes/PPMembership.txt"
         urllib.request.urlretrieve(pp_membership_url, os.path.join(settings.install_folder, "fasta", "PPMembership.txt"))
@@ -512,39 +519,42 @@ def download_profile_fasta():
     
     print("Generating list of proteomes to download.")
 
-    reference_proteomes = []
-    with open(os.path.join(settings.install_folder, "fasta", "ref_proteomes_list.tsv"), 'r') as file:
-        result = csv.reader(file, delimiter='\t')
-        header = next(result)
-        header = [x.lower() for x in header]
-        for row in result:
-            if row[header.index('proteome id')] not in reference_proteomes:
-                reference_proteomes.append(row[header.index('proteome id')])
-    
+    member_proteomes = []
     pan_proteomes = []
-    ref_proteomes_added = []
-
+    ref_proteomes_dl = []
+    
+    print("Including all pan proteomes.")
+    # download pan proteomes first as we include all of them
     with open(os.path.join(settings.install_folder, "fasta", "PPMembership.txt"), 'r') as file:
         i = 1
         result = csv.reader(file, delimiter='\t')
         next(result)
         for row in result:
-            # so we haven't added this pan proteome yet
+            # member hasn't been added yet
+            if row[1] not in member_proteomes:
+                member_proteomes.append(row[1])
+                
+            # pan proteome hasn't been added yet
             if row[0] not in pan_proteomes:
-                # is one of the members in the reference proteome?
-                # if so, add the pan proteome
-                if row[1] in reference_proteomes:
-                    pan_proteomes.append(row[0])
-                    ref_proteomes_added.append(row[1])
-            else:
-                if row[1] in reference_proteomes:
-                    ref_proteomes_added.append(row[1])
-
-    ref_proteomes_dl = []
-    for proteome in reference_proteomes:
-        if proteome not in ref_proteomes_added:
-            ref_proteomes_dl.append(proteome)
-
+                pan_proteomes.append(row[0])
+    
+    print("Checking for missing reference proteomes.")
+    ref_count = 0
+    # so now we download the pan proteomes but we need to make sure the reference proteomes
+    # on uniprot are included as sometimes they won't be a member of a pan proteome if they are
+    # the only member of a pan proteome
+    with open(os.path.join(settings.install_folder, "fasta", "ref_proteomes_list.tsv"), 'r') as file:
+        result = csv.reader(file, delimiter='\t')
+        header = next(result)
+        header = [x.lower() for x in header]
+        for row in result:
+            # so this reference is not a member of a pan proteome, so add it as a pan proteome
+            if row[header.index('proteome id')] not in member_proteomes:
+                ref_count += 1
+                member_proteomes.append(row[header.index('proteome id')])
+                ref_proteomes_dl.append(row[header.index('proteome id')])
+    
+    print("%s reference proteomes were not a member of a pan-proteome." % ref_count)
     # human
     ref_proteomes_dl.append("UP000005640")
         
@@ -562,8 +572,8 @@ def download_profile_fasta():
                 if not os.path.exists(os.path.join(settings.install_folder, "fasta", "pan", "%s.fasta.gz" % proteome)):
                     print("Downloading %s pan-proteome of %s. (%s)" % (i, lenp, proteome))
                     # fix until uniprot is fixed
-                    proteome_url = "https://proteininformationresource.org/rps/data/new/PPSeqCurrent/" + proteome + ".fasta.gz"
-                    #proteome_url = "https://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/pan_proteomes/" + proteome + ".fasta.gz"
+                    #proteome_url = "https://proteininformationresource.org/rps/data/new/PPSeqCurrent/" + proteome + ".fasta.gz"
+                    proteome_url = "https://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/pan_proteomes/" + proteome + ".fasta.gz"
                     urllib.request.urlretrieve(proteome_url, os.path.join(settings.install_folder, "fasta", "pan", "%s.fasta.gz" % proteome))
             except Exception as e:
                 if attempt == 2:
@@ -607,7 +617,10 @@ def create_full_fasta():
     if os.path.exists("%s%sfull.fasta.gz" % (os.path.join(settings.install_folder, "fasta"), os.sep)):
         print("full.fasta.gz exists already. Delete to recreate.")
         return
-        
+    
+    if os.path.exists("%s%shuman.fasta" % (os.path.join(settings.install_folder, "fasta"), os.sep)):
+        os.remove("%s%shuman.fasta" % (os.path.join(settings.install_folder, "fasta"), os.sep))
+    
     # pan proteome files
     print("Extracting proteins for pan proteomes.")
     for file in os.listdir(os.path.join(settings.install_folder, "fasta", "pan")):
@@ -652,9 +665,10 @@ def create_full_fasta():
                 os.remove("%s" % (os.path.join(settings.install_folder, "fasta", "ref", filename)))
 
     print("Finished generating the full FASTA file.")
-    
+
 def filter_high_profile():
     '''filters high profile out of the full fasta'''
+    ''' we also use this to build a list of proteomes and names'''
     
     if os.path.exists("%s%sfull.fasta.gz" % (os.path.join(settings.install_folder, "fasta"), os.sep)):
         if os.path.exists("%s%sfull.fasta" % (os.path.join(settings.install_folder, "fasta"), os.sep)):
@@ -664,25 +678,32 @@ def filter_high_profile():
         with gzip.open("%s%sfull.fasta.gz" % (os.path.join(settings.install_folder, "fasta"), os.sep), "rb") as f_in:
             with open("%s%sfull.fasta" % (os.path.join(settings.install_folder, "fasta"), os.sep), "ab") as f_out:
                 shutil.copyfileobj(f_in, f_out)
-        
-    print("Filtering HAPs to generate profile FASTA.")
+
+    print("Filtering HAPs to generate profile FASTA (this may take a while).")
     if os.path.exists(os.path.join(settings.install_folder, "fasta", "profile.fasta")):
         os.remove(os.path.join(settings.install_folder, "fasta", "profile.fasta"))
                 
     # need to keep track of accessions. if it exists already, just skip it.
     accessions = set()
     seq_count = 0
+    # ppid: name
+    rows_list = []
+    proteomes = []
     for record in SeqIO.parse("%s%sfull.fasta" % (os.path.join(settings.install_folder, "fasta"), os.sep), "fasta"):
-        m = re.search("ribosomal", record.description)
+        dict1 = {}
+        p = re.compile("^(?P<start>(?P<db>[^\|]+)\|(?P<accession>[^\|]+)\|(?P<middle>.+)\s)(?P<OS>OS=.+)\s(?P<OX>OX=.+)\s(?P<UPId>UPId=[^\s]+)\s(?P<PPId>PPId=[^\s]+)$")
+        m = p.search(record.description)
         if m:
-            # find OS, PPId, UPId
-            p = re.compile("^(?P<start>(?P<db>[^\|]+)\|(?P<accession>[^\|]+)\|(?P<middle>.+)\s)(?P<OS>OS=.+)\s(?P<OX>OX=.+)\s(?P<UPId>UPId=[^\s]+)\s(?P<PPId>PPId=[^\s]+)$")
-            m1 = p.search(record.description)
+            if m.group('PPId') not in proteomes:
+                proteomes.append(m.group('PPId'))
+                dict1.update({'PPID': m.group('PPId').replace('PPId=', ''), 'OS': m.group('OS').replace('OS=', '')})
+                rows_list.append(dict1)
+            
+            accession = m.group('accession')
+            tax = m.group('OS')
+            description = m.group('start') + " " + tax + " " + m.group('OX') + " " + m.group('UPId')  + " " + m.group('PPId')
+            m1 = re.search("ribosomal", record.description)
             if m1:
-                accession = m1.group('accession')
-                tax = m1.group('OS')
-                description = m1.group('start') + " " + tax + " " + m1.group('OX') + " " + m1.group('UPId')  + " " + m1.group('PPId')
-                
                 # now write the new fasta header + sequence to a file
                 record.description = description
                 if accession not in accessions:
@@ -692,10 +713,15 @@ def filter_high_profile():
                     seq_count += 1
                 else:
                     print("Duplicate accession: %s" % accession)
+        else:
+            print("no regexp match for: %s" % record)
     
-            else:
-                print("no regexp match for: %s" % record)
-
+    if os.path.exists(os.path.join(settings.install_folder, "fasta", "proteomes.tsv")):
+        os.remove(os.path.join(settings.install_folder, "fasta", "proteomes.tsv"))
+        
+    proteomes_out = pd.DataFrame(rows_list)
+    proteomes_out.to_csv(os.path.join(settings.install_folder, "fasta", "proteomes.tsv"), sep='\t')
+    
     if os.path.exists("%s%sfull.fasta.gz" % (os.path.join(settings.install_folder, "fasta"), os.sep)):
         os.remove("%s%sfull.fasta.gz" % (os.path.join(settings.install_folder, "fasta"), os.sep))
     

@@ -149,7 +149,13 @@ def run_searchgui(queue_id):
     if success == 0 or not os.path.exists("%s%s%s_%s.par" % (os.path.join(settings.data_folder, project, "out", filename, type), os.sep, project, type)):
         write_debug("Missing searchgui PAR file.", job, project)
         return False
-
+    # this is a workaround for the latest searchgui
+    else:
+        if not os.path.exists(os.path.join(install_folder, "temp", project, str(job), "identification_parameters_4")):
+            os.makedirs(os.path.join(install_folder, "temp", project, str(job), "identification_parameters_4"))
+        if not os.path.exists("%s%s%s_%s.par" % (os.path.join(settings.install_folder, "temp", project, str(job), "identification_parameters_4"), os.sep, project, type)):
+            shutil.copy("%s%s%s_%s.par" % (os.path.join(settings.data_folder, project, "out", filename, type), os.sep, project, type),
+                        "%s%s%s_%s.par" % (os.path.join(settings.install_folder, "temp", project, str(job), "identification_parameters_4"), os.sep, project, type))
     if settings.threads == -1:
         threads = psutil.cpu_count()
     else:

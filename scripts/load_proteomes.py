@@ -23,8 +23,8 @@ def load_proteomes():
     if  not os.path.exists(
             os.path.join(settings.install_folder, 
             "fasta", 
-            "ref_proteomes_list.tsv")):
-        print("ref_proteomes_list.tsv does not exist. Run generate_fasta first.")
+            "proteomes.tsv")):
+        print("proteomes.tsv does not exist. Run generate_fasta first.")
         return
 
     proteomes_to_add = []
@@ -33,16 +33,16 @@ def load_proteomes():
     with open(os.path.join(
             settings.install_folder, 
             "fasta", 
-            "ref_proteomes_list.tsv"), 'r') as file:
+            "proteomes.tsv"), 'r') as file:
         result = csv.reader(file, delimiter='\t')
         header = next(result)
         # uniprot has been inconsistent with how they capitalize their columns
         header = [x.lower() for x in header]
         for row in result:
-            if row[header.index('proteome id')] not in reference_proteomes:
-                reference_proteomes.append(row[header.index('proteome id')])
-                proteome = Proteome(proteome=row[header.index('proteome id')],
-                                    organism=row[header.index('organism')])
+            if row[header.index('ppid')] not in reference_proteomes:
+                reference_proteomes.append(row[header.index('ppid')])
+                proteome = Proteome(proteome=row[header.index('ppid')],
+                                    organism=row[header.index('os')])
                 proteomes_to_add.append(proteome)
                 if len(proteomes_to_add) > 5000:
                     Proteome.objects.bulk_create(proteomes_to_add, 
