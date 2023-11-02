@@ -10,7 +10,6 @@ python3 manage.py loaddata label.json
 python3 manage.py loaddata sample.json
 python3 manage.py loaddata tag.json
 python3 manage.py loaddata queue.json
-python3 manage.py loaddata phenotype.json
 python3 manage.py loaddata multiplexlabel.json
 python3 manage.py loaddata labelchoice.json
 python3 manage.py loaddata metadata.json
