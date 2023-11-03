@@ -493,7 +493,10 @@ class EnzymeList(models.Model):
     def __str__(self):
         return self.name
 
-       
+class EnzymeChoiceManager(models.Manager):
+    def get_by_natural_key(self, enzyme, searchsetting):
+        return self.get(enzyme=enzyme, searchsetting=searchsetting)
+        
 class EnzymeChoice(models.Model):
     class Specificity(models.IntegerChoices):
         SPECIFIC = 0, _('Specific')
@@ -509,6 +512,8 @@ class EnzymeChoice(models.Model):
     specificity = models.IntegerField(choices=Specificity.choices, default=0)
     mc = models.IntegerField(default=2, help_text='Missed Cleavages Allowed')
     
+    objects = EnzymeChoiceManager()
+    
     def __str__(self):
         return self.enzyme.name
         
@@ -516,8 +521,9 @@ class EnzymeChoice(models.Model):
         unique_together = ('searchsetting', 'enzyme')
     
     def natural_key(self):
-        return(self.enzyme,) + self.searchsetting.natural_key()
-    natural_key.dependencies = ['projects.project', 'projects.searchsetting']        
+        return(self.enzyme, self.searchsetting)
+        
+    natural_key.dependencies = ['projects.project', 'projects.searchsetting']
         
 class ModList(models.Model):
     name = models.CharField(
@@ -529,6 +535,10 @@ class ModList(models.Model):
     def __str__(self):
         return self.name
 
+class ModChoiceManager(models.Manager):
+    def get_by_natural_key(self, mod, searchsetting):
+        return self.get(mod=mod, searchsetting=searchsetting)
+        
 class ModChoice(models.Model):
     class ModType(models.TextChoices):
         FIXED = 'Fixed'
@@ -537,6 +547,8 @@ class ModChoice(models.Model):
     searchsetting = models.ForeignKey('SearchSetting', on_delete=models.CASCADE)
     modtype = models.CharField(choices=ModType.choices, max_length=10)
 
+    objects = ModChoiceManager()
+    
     def __str__(self):
         return self.mod.name
         
@@ -544,7 +556,8 @@ class ModChoice(models.Model):
         unique_together = ('searchsetting', 'mod')
 
     def natural_key(self):
-        return(self.mod,) + self.searchsetting.natural_key()
+        return(self.mod, self.searchsetting)
+        
     natural_key.dependencies = ['projects.searchsetting']
         
 
@@ -576,6 +589,7 @@ class Sample(models.Model):
         
     def natural_key(self):
         return(self.project.name, self.name,)
+        
     natural_key.dependencies = ['projects.project']
 
 class TagManager(models.Manager):
@@ -663,7 +677,11 @@ class MetaDataChoice(models.Model):
         return(self.project.name,) + self.metadata.natural_key() + self.queue.natural_key()
         
     natural_key.dependencies = ['projects.metadata', 'projects.queue']
- 
+
+class MultiplexLabelManager(models.Manager):
+    def get_by_natural_key(self, project, reagent, sample_project, sample_name):
+        return self.get(project=project, reagent=reagent, sample__project=sample_project, sample__name=sample_name)
+        
 class MultiplexLabel(models.Model):
     project = models.ForeignKey('projects.Project', on_delete=models.CASCADE)
     # filename: 01CPTAC_COprospective_Proteome_PNNL_20170123
@@ -674,7 +692,14 @@ class MultiplexLabel(models.Model):
     )
     reagent = models.ForeignKey('projects.reagent', null=True, 
                                 on_delete=models.SET_NULL)
-        
+
+    objects = MultiplexLabelManager()
+    
+    def natural_key(self):
+        return(self.project.name, self.reagent.name) + self.sample.natural_key()
+    
+    natural_key.dependencies = ['projects.project', 'projects.sample', 'projects.reagent']
+    
 class LabelChoice(models.Model):
     multiplexlabel = models.ForeignKey('MultiplexLabel', on_delete=models.CASCADE)
     label = models.ForeignKey(
@@ -695,6 +720,11 @@ class LabelChoice(models.Model):
             "same patient has the same ID for each sample they are in."
         )
     )
+ 
+    def natural_key(self):
+        return(self.identifier,) + self.multiplexlabel.natural_key() + self.label.natural_key() + self.tag.natural_key()
+        
+    natural_key.dependencies = ['projects.multiplexlabel', 'projects.label', 'projects.tag',]
 
 class Reagent(models.Model):
     name = models.CharField(max_length=255, primary_key=True)
@@ -702,17 +732,25 @@ class Reagent(models.Model):
 
     def __str__(self):
         return self.name
+
+class LabelManager(models.Manager):
+    def get_by_natural_key(self, reagent, name):
+        return self.get(reagent=reagent, name=name)
         
 class Label(models.Model):
     reagent = models.ForeignKey('projects.reagent', on_delete=models.CASCADE)
     name = models.CharField(max_length=100)
     description = models.CharField(max_length=250, null=True, blank=True)
 
+    objects = LabelManager()
+    
     class Meta:
         unique_together = ('reagent', 'name')
         
     def natural_key(self):
-        return(self.reagent, self.name,)
+        return(self.reagent.name, self.name,)
         
     def __str__(self):
         return self.name or ''
+        
+    natural_key.dependencies = ['projects.reagent']
