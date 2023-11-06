@@ -45,7 +45,6 @@ def generate_file_queue(project, jobs):
         return False
         
     jobs = int(jobs)
-    job = 0
 
     install_folder = settings.install_folder
     
@@ -72,25 +71,30 @@ def generate_file_queue(project, jobs):
                     try:                
                         add_file_to_queue(os.path.join(settings.data_folder, 
                                             project, "raw", file), 
-                                            project, Queue.Status.FILE_ADDED, job)
-                        if job < jobs - 1:
-                            job += 1
-                        else:
-                            job = 0
+                                            project, Queue.Status.FILE_ADDED)
                     # failed so move it back to the raw incoming dir
                     except Exception as e:
                         print("error adding to queue: ", e)
-                        write_debug(e, job, project)
+                        write_debug(e, 0, project)
                     else:                 
                         files_added += 1
+
     if files_added > 0:
         print("Files added to queue. Be sure to run: ./generate_fasta %s" % project)
-        return True
 
     if file_count == 0:
         print("No files found in %s." % os.path.join(settings.data_folder, project, "raw"))
-        return False
         
+    if jobs > 0:
+        print("Updating jobs for files in queue (if any).")
+        update_jobs(project, jobs)
+        
+    if files_added > 0:
+        return True
+        
+    if file_count == 0:
+        return False
+
     # so we didn't add anything, now check for status 13
     # if this is true, everything is 13 or higher so run update_queue final
     if not Queue.objects.filter(project__name=project, skip=False).exclude(status=Queue.Status.FINISHED_PROT).exists():
@@ -149,20 +153,44 @@ def generate_file_queue(project, jobs):
             if c.error >= (1 + settings.max_retries):
                 print("Warning: %s has error status exceeding the max attempts (%s) and cannot be processed." % (c.filename, (1 + settings.max_retries)))
         
-def add_file_to_queue(filename, project, status, job):  
+def add_file_to_queue(filename, project, status):
     # we only want the basename without path or raw
     filename = Path(filename).stem
     
     try:
         p = Project.objects.get(name=project)
         queue = Queue(filename=filename, project=p, 
-                      status=status, job=job)
+                      status=status, job=0)
         queue.save()
         
-        write_debug("Adding file to queue: Filename: %s Project: %s Queue ID: %s Job: %s" % (filename, 
+        write_debug("Adding file to queue: Filename: %s Project: %s Queue ID: %s Job: %s." % (filename, 
                 project, queue.id, job), job, project)
     except Exception as e:
-        write_debug("adding to models failed for: %s %s" % (filename, e), job, project)
+        write_debug("Adding to queue failed for: %s %s." % (filename, e), job, project)
         pass
 
     return 1
+    
+def update_jobs(project, jobs):
+    job = 0
+    p = Project.objects.get(name=project)
+    queue = Queue.objects.filter(project=p)
+    for q in queue:
+        if job != q.job:
+            q.job = job
+            q.save()
+        
+            write_debug("Updated job for file in queue: Filename: %s Project: %s Queue ID: %s Job: %s" % (q.filename, 
+                        project, q.id, job), job, project)
+                
+        if job < jobs - 1:
+            job += 1
+        else:
+            job = 0
+        
+    return 1
+    
+# for new process
+# find files and add as job 0
+# then if #jobs > 0, update the jobs by pulling all the queue entries then changing job
+# this way we can update jobs even if didn't actually add files
