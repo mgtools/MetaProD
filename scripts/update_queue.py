@@ -164,9 +164,9 @@ def add_file_to_queue(filename, project, status):
         queue.save()
         
         write_debug("Adding file to queue: Filename: %s Project: %s Queue ID: %s Job: %s." % (filename, 
-                project, queue.id, job), job, project)
+                project, queue.id, "update"), "update", project)
     except Exception as e:
-        write_debug("Adding to queue failed for: %s %s." % (filename, e), job, project)
+        write_debug("Adding to queue failed for: %s %s." % (filename, e), "update", project)
         pass
 
     return 1
