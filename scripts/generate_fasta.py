@@ -563,6 +563,7 @@ def download_profile_fasta():
     print("Downloading needed pan proteomes.")
     lenp = len(pan_proteomes)
     i = 1
+    failed_proteomes = []
     for proteome in pan_proteomes:
         attempts = 10
         for attempt in range(attempts):
@@ -576,8 +577,9 @@ def download_profile_fasta():
                     proteome_url = "https://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/pan_proteomes/" + proteome + ".fasta.gz"
                     urllib.request.urlretrieve(proteome_url, os.path.join(settings.install_folder, "fasta", "pan", "%s.fasta.gz" % proteome))
             except Exception as e:
-                if attempt == 2:
+                if attempt == attempts - 1:
                     print('Error downloading %s: ' % proteome, e)
+                    failed_proteoms.append(proteome)
             else:
                 break
         i += 1
@@ -600,16 +602,23 @@ def download_profile_fasta():
                     #proteome_url = "https://www.uniprot.org/uniprot/?query=proteome:" + proteome + "&format=fasta&compress=yes"
                     urllib.request.urlretrieve(proteome_url, os.path.join(settings.install_folder, "fasta", "ref", "%s.fasta.gz" % proteome))
             except Exception as e:
-                if attempt == 2:
+                if attempt == attempts - 1:
                     print('Error downloading %s: ' % proteome, e)
+                    failed_proteoms.append(proteome)
             else:
                 break
         i += 1
+    
+    print("The following proteomes failed to download:")
+    print(*failed_proteomes, sep=',')
+    
 
 def create_full_fasta():
     ''' produces full.fasta with all sequences and no filtering'''
     seq_count = 0
 
+    print("Generating full.fasta. This can take a long time due to the need to reformat the reference proteomes to match the pan proteome format.")
+    
     if os.path.exists("%s%sfull.fasta" % (os.path.join(settings.install_folder, "fasta"), os.sep)):
         print("full.fasta exists already. Delete to recreate.")
         return
@@ -623,7 +632,7 @@ def create_full_fasta():
     
     # pan proteome files
     print("Extracting proteins for pan proteomes.")
-    for file in os.listdir(os.path.join(settings.install_folder, "fasta", "pan")):
+    for file in sorted(os.listdir(os.path.join(settings.install_folder, "fasta", "pan"))):
         if file.endswith(".fasta.gz"):
             filename = Path(file).stem
             with gzip.open(os.path.join(settings.install_folder, "fasta", "pan", file), "rb") as f_in:
@@ -633,7 +642,7 @@ def create_full_fasta():
     # reference proteomes do not include the proteome in the header, so we 
     #  need to add it
     print("Extracting proteins for reference proteomes (this may take a while).")
-    for file in os.listdir(os.path.join(settings.install_folder, "fasta", "ref")):
+    for file in sorted(os.listdir(os.path.join(settings.install_folder, "fasta", "ref"))):
         # exclude human
         if file.endswith(".fasta.gz"):
             filename = Path(file).stem

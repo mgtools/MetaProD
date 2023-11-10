@@ -85,7 +85,7 @@ def run_reporter(queue_id):
     i = 1
     ref_sample_list = []
     for label in labels:
-        if label.phenotype.phenotype == 'Reference':
+        if label.tag.t_type == 'Reference':
             ref_sample_list.append(i)
         i += 1
     
