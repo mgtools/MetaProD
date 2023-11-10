@@ -699,7 +699,13 @@ class MultiplexLabel(models.Model):
         return(self.project.name, self.reagent.name) + self.sample.natural_key()
     
     natural_key.dependencies = ['projects.project', 'projects.sample', 'projects.reagent']
-    
+
+class LabelChoiceManager(models.Manager):
+    def get_by_natural_key(self, identifier, multiplexlabel_project, multiplexlabel_reagent, multiplexlabel_sample_project, multiplexlabel_sample_name, label_reagent, label_name):
+        return self.get(identifier=identifier, 
+            multiplexlabel__project=multiplexlabel_project, multiplexlabel__reagent=multiplexlabel_reagent, multiplexlabel__sample__project=multiplexlabel_sample_project, multiplexlabel__sample__name=multiplexlabel_sample_name,
+            label__reagent__name=label_reagent, label__name=label_name)
+        
 class LabelChoice(models.Model):
     multiplexlabel = models.ForeignKey('MultiplexLabel', on_delete=models.CASCADE)
     label = models.ForeignKey(
@@ -721,10 +727,15 @@ class LabelChoice(models.Model):
         )
     )
  
-    def natural_key(self):
-        return(self.identifier,) + self.multiplexlabel.natural_key() + self.label.natural_key() + self.tag.natural_key()
+    objects = LabelChoiceManager()
+
+    class Meta:
+        unique_together = ('multiplexlabel', 'label')
         
-    natural_key.dependencies = ['projects.multiplexlabel', 'projects.label', 'projects.tag',]
+    def natural_key(self):
+        return(self.identifier,) + self.multiplexlabel.natural_key() + self.label.natural_key()
+        
+    natural_key.dependencies = ['projects.multiplexlabel', 'projects.label']
 
 class Reagent(models.Model):
     name = models.CharField(max_length=255, primary_key=True)
