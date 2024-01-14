@@ -85,7 +85,7 @@ def generate_file_queue(project, jobs):
     if file_count == 0:
         print("No files found in %s." % os.path.join(settings.data_folder, project, "raw"))
         
-    if jobs > 0:
+    if jobs > 1:
         print("Updating jobs for files in queue (if any).")
         update_jobs(project, jobs)
         
