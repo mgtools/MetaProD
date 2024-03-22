@@ -115,8 +115,6 @@ def analyze_results(project):
         ro.r('count_columns2_treatment = df.prot2[, grep("psm.*.%s$", colnames(df.prot2), ignore.case=TRUE)]' % phenotype)
         ro.r('count_columns2 = cbind(count_columns2_control, count_columns2_treatment)')
         ro.r('psm.count.table2 = data.frame(count = rowMins(as.matrix(count_columns2)), row.names =  df.prot2$accession)')
-        
-        ### done to here
         ro.r('control2 = rep("control", each=length(TMT_columns2_control))')
         ro.r('treatment2 = rep("treatment", each=length(TMT_columns2_treatment))')
         ro.r('cond2 = as.factor(c(control2, treatment2))')
@@ -239,10 +237,6 @@ def analyze_results(project):
     ro.r.assign('df.pep', peptide_samples_r)
 
     ### start of R part
-    # load peptide ratios
-    #df.pep = read.table('x:/co_3_c4_10ppm/peptide_samples.csv', sep='\t', quote="", header=TRUE)
-    # df.pep = read.table('z:/data/arsenic_c4_10ppm/results/peptide_samples_modified.tsv', sep='\t', quote="", header=TRUE)
-    # df.pep = read.table('x:/co_3_c4_10ppm/peptide_samples.csv', sep='\t', quote="", header=TRUE)
     if searchsetting.multiplex == True:
         query = (Tag.objects.filter(project=project)
                             .filter(t_type='Reference')
@@ -263,6 +257,9 @@ def analyze_results(project):
         ro.r('psm_columns = grep("psm.", colnames(df.pep), ignore.case=TRUE)')
     # select the ratio columns from the data
     ro.r('dat.pep.ratio=df.pep[ratio_columns]')
+    # normalize by total column sum so each column adds to 1 for LF
+    if not searchsetting.multiplex == True:
+        ro.r('dat.pep.ratio.normalized = sweep(dat.pep.ratio, 2, colSums(dat.pep.ratio, na.rm=TRUE),'/')')
     # count non ratio columns
     ro.r('dat.pep.ratio["count"] = (1 - rowSums(is.na(dat.pep.ratio)) / ncol(dat.pep.ratio))')
     # select the rows meating the non-empty criteria (0.5 = 50%)
@@ -279,10 +276,10 @@ def analyze_results(project):
     ro.r('rows = row.names(PEM.final)')
     # gather the filtered psm data
     ro.r('psm_data = df.pep[rows, psm_columns]')
-    # replace NA values with 1  
-    # therefore, imputed peptides will count as having 1 PSM, but we don't actually
-    # know what it will be. could also try median or mean value for that peptide across all data
-    ro.r('psm_data[is.na(psm_data)] <- 1')
+    # add 1 to all PSM counts
+    # therefore, imputed peptides will count as having 1 PSM
+    ro.r('psm_data[is.na(psm_data)] <- 0')
+    ro.r('psm_data = psm_data + 1')
     # gather peptide info
     ro.r('data_columns = df.pep[rows, 1:5]')
     ro.r('peptide_final = cbind(data_columns, PEM.final, psm_data)')
@@ -539,6 +536,7 @@ def generate_lf_peptides(project):
                                     'protein__fp__gene',
                                     'protein__fp__description',
                                     'protein__fp__ppid',
+                                    'protein__fp__ppid__organism',
                                     'peak_area_psm',
                                     'queue__sample__name',
                                     'queue__filename',
@@ -552,6 +550,7 @@ def generate_lf_peptides(project):
                                                 'protein__fp__gene': 'gene',
                                                 'protein__fp__description': 'description',
                                                 'protein__fp__ppid': 'ppid',
+                                                'protein__fp__ppid__organism': 'organism',
                                                 'peak_area_psm': 'psm',
                                                 'queue__sample__name': 'sample',
                                                 'queue__filename': 'filename',
@@ -590,14 +589,15 @@ def generate_lf_peptides(project):
                                             #columns='label', values='ratio')
     #psm_ratio_list = psm_ratio_list.reset_index()
 
-    data_cols = list(sorted(peptide_list.columns[5:]))
+    data_cols = list(sorted(peptide_list.columns[6:]))
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", category=RuntimeWarning)  
         peptide_list = peptide_list.groupby(['sequence',
                                             'accession',
                                             'gene',
                                             'description',
-                                            'ppid']).agg({**{e: 'median' for e in data_cols}})
+                                            'ppid',
+                                            'organism']).agg({**{e: 'median' for e in data_cols}})
     peptide_list = peptide_list.reset_index()
 
     return(peptide_list)
