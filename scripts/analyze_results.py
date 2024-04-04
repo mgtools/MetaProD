@@ -78,14 +78,14 @@ def analyze_results(project):
     
         peptides_n = generate_initial_peptides(psm_ratio_list, columns)
     
-        peptide_samples = peptides_to_phenotypes(peptides_n, columns, labelchoices)
+        peptides_initial = peptides_to_phenotypes(peptides_n, columns, labelchoices)
     else:
         print("Updating peptide ratios for label-free data (this may take some time).")
-        peptide_samples = generate_lf_peptides(project)
+        peptides_initial = generate_lf_peptides(project)
         
     if not os.path.exists(os.path.join(settings.data_folder, project, 'results')):
         os.makedirs(os.path.join(settings.data_folder, project, 'results'))
-    peptide_samples.to_csv(os.path.join(settings.data_folder, project, 'results', '%s_peptide_samples.tsv' % project), index=False, sep='\t')
+    peptides_initial.to_csv(os.path.join(settings.data_folder, project, 'results', '%s_peptides_initial.tsv' % project), index=False, sep='\t')
     
     def run_deqms_lf(phenotype):
         print("Calculating differentially expressed proteins for %s." % phenotype)
@@ -231,10 +231,11 @@ def analyze_results(project):
     print("Note: There may be some R warrnings or messages that can be ignored.")
     print("Running PEMM (this may take some time).")
     load_pemm()
+    # df.pep = read.table('z:cd2_peptides_initial.tsv', sep="\t", quote="", header=TRUE)
     with localconverter(ro.default_converter + pandas2ri.converter):
-        peptide_samples_r = ro.conversion.py2rpy(peptide_samples)
-    # assign the dataframe to df.prot2
-    ro.r.assign('df.pep', peptide_samples_r)
+        peptides_initial_r = ro.conversion.py2rpy(peptides_initial)
+    # assign the dataframe to df.pep
+    ro.r.assign('df.pep', peptides_initial_r)
 
     ### start of R part
     if searchsetting.multiplex == True:
@@ -256,10 +257,7 @@ def analyze_results(project):
         ro.r('ratio_columns = grep("Peak.Area.", colnames(df.pep))')
         ro.r('psm_columns = grep("psm.", colnames(df.pep), ignore.case=TRUE)')
     # select the ratio columns from the data
-    ro.r('dat.pep.ratio=df.pep[ratio_columns]')
-    # normalize by total column sum so each column adds to 1 for LF
-    if not searchsetting.multiplex == True:
-        ro.r('dat.pep.ratio.normalized = sweep(dat.pep.ratio, 2, colSums(dat.pep.ratio, na.rm=TRUE),'/')')
+    ro.r('dat.pep.ratio=df.pep[ratio_columns]')        
     # count non ratio columns
     ro.r('dat.pep.ratio["count"] = (1 - rowSums(is.na(dat.pep.ratio)) / ncol(dat.pep.ratio))')
     # select the rows meating the non-empty criteria (0.5 = 50%)
@@ -269,8 +267,10 @@ def analyze_results(project):
     ro.r('dat.filtered["count"] <- NULL')
     # label-free is already transformed
     ro.r('dat.filtered.log2 = log2(dat.filtered)')
+    ro.r('dat.filtered.log2.normalized = sweep(dat.filtered.log2, 2, colMedians(as.matrix(dat.filtered.log2), na.rm=TRUE))')
     # run PEMM on the log2 transformed data
-    ro.r('PEM.result = PEMM_fun(as.matrix(dat.filtered.log2), phi=0)')
+    ro.r('PEM.result = PEMM_fun(as.matrix(dat.filtered.log2.normalized), phi=0)')
+    print('Generating final peptides.')
     # PEM.result$Xhat contains the results
     ro.r('PEM.final = as.data.frame(PEM.result$Xhat)')
     ro.r('rows = row.names(PEM.final)')
@@ -281,7 +281,7 @@ def analyze_results(project):
     ro.r('psm_data[is.na(psm_data)] <- 0')
     ro.r('psm_data = psm_data + 1')
     # gather peptide info
-    ro.r('data_columns = df.pep[rows, 1:5]')
+    ro.r('data_columns = df.pep[rows, 1:6]')
     ro.r('peptide_final = cbind(data_columns, PEM.final, psm_data)')
     # re-add the reference data in case somebody wants to use it
     if searchsetting.multiplex == True:
@@ -293,43 +293,30 @@ def analyze_results(project):
         peptides_final = ro.conversion.rpy2py(peptide_final)
     peptides_final.to_csv(os.path.join(settings.data_folder, project, 'results', '%s_peptides_final.tsv' % project), index=False, sep='\t')
 
+    print('Generating proteins.')
     #ro.r('write.table(peptide_final, file="x:/peptides_final.tsv", sep="\t", row.names=FALSE)')
     ro.r('PEM.final["accession"] = df.pep[rows, "accession"]')
     ro.r('psm_data["accession"] = df.pep[rows, "accession"]')
     # aggregate all the data
     # these should result in things being in the same order so we should be able
     # to merge the two
-    if searchsetting.multiplex == True:
-        ro.r('df.prot2.ratio = aggregate(PEM.final[,1:ncol(PEM.final)-1], by=list(PEM.final$accession), FUN=median)')
-    else:
-        # for lf, we want to convert back to non-log then add them
-        ro.r('PEM.final.unlog = PEM.final')
-        ro.r('ratio_columns_prot = grep("Peak.Area.", colnames(PEM.final.unlog))')
-        ro.r('PEM.final.unlog = PEM.final.unlog[ratio_columns_prot]')
-        ro.r('PEM.final.unlog = 2^PEM.final.unlog')
-        ro.r('PEM.final.unlog["accession"] = PEM.final$accession')
-        ro.r('df.prot2.ratio = aggregate(PEM.final.unlog[,1:ncol(PEM.final.unlog)-1], by=list(PEM.final.unlog$accession), FUN=sum)')
-        # now re transform to log2
-        ro.r('Group.1 = df.prot2.ratio$Group.1')
-        ro.r('df.prot2.ratio$Group.1 <- NULL')
-        ro.r('df.prot2.ratio = log2(df.prot2.ratio)')
-        ro.r('df.prot2.ratio = cbind(Group.1, df.prot2.ratio)')
+    ro.r('df.prot2.ratio = aggregate(PEM.final[,1:ncol(PEM.final)-1], by=list(PEM.final$accession), FUN=median)')
+
     ro.r('df.prot2.psm = aggregate(psm_data[,1:ncol(psm_data)-1], by=list(psm_data$accession), FUN=sum)')
     # now we need to pull the protein information from a previous table
-    ro.r('protein_list = df.pep[!duplicated(df.pep$accession),][2:5]')
+    ro.r('protein_list = df.pep[!duplicated(df.pep$accession),][2:6]')
     ro.r('prots = df.prot2.ratio["Group.1"]')
     ro.r('protein_info = protein_list[protein_list$accession %in% prots$Group.1, ]')
     # make sure they're ordered the same
     ro.r('df.prot2.ratio <- df.prot2.ratio[order(df.prot2.ratio$Group.1),]')
+    ro.r('df.prot2.ratio$Group.1 <- NULL')
     ro.r('df.prot2.psm <- df.prot2.psm[order(df.prot2.psm$Group.1),]')
+    ro.r('df.prot2.ratio.normalized = sweep(df.prot2.ratio, 2, colMedians(as.matrix(df.prot2.ratio), na.rm=TRUE))')
     ro.r('protein_info <- protein_info[order(protein_info$accession),]')
     # merge it
-    ro.r('df.prot2 = cbind(protein_info, df.prot2.ratio, df.prot2.psm)')
+    ro.r('df.prot2 = cbind(protein_info, df.prot2.ratio.normalized, df.prot2.psm)')
     # drop group.1
     ro.r('df.prot2$Group.1 <- NULL')
-    ro.r('df.prot2$Group.1 <- NULL')
-    #if searchsetting.multiplex == True:
-    #    ro.r('df.prot2$Group.1 <- NULL')
     df_prot2 = ro.r('df.prot2')
     # save the results and also bring the dataframe into python
     with localconverter(ro.default_converter + pandas2ri.converter):
@@ -389,6 +376,15 @@ def load_pemm():
     utils.install_packages(pemm_dir, repos = ro.r("NULL"), type = "source")
     global pemm
     pemm = importr('PEMM')
+    
+    utils.chooseCRANmirror(ind=1)
+    packnames = ('matrixStats')
+    names_to_install = [x for x in packnames if not rpackages.isinstalled(x)]
+    if len(names_to_install) > 0:
+        utils.install_packages(StrVector(names_to_install))
+        
+    global matrixstats
+    matrixstats = importr('matrixStats')
 
 def load_ratios(project):
     query = (PsmRatio.objects.filter(psm__queue__project__name=project)
@@ -455,9 +451,12 @@ def generate_initial_peptides(psm_ratio_list, columns):
                                        'ppid',
                                        'description',
                                       ])
+    # median of PSM is peptide
     peptides_r = peptides[columns].median()
+    # peptide PSM count is total PSMs
     peptides_r['psm'] = peptides.size()
     peptides_r = peptides_r.reset_index()
+    # normalize peptide ratio by median of the channel (sets the channel median to 1)
     peptides_n = peptides_r.groupby('sample')[columns].transform(lambda x: x/x.median())
 
     # pull the peptide id and sample from other dataframe
@@ -567,28 +566,14 @@ def generate_lf_peptides(project):
         else:
             new_column_1 = "Peak Area %s %s" % (str(row['filename']), str(row['tag']))
             new_column_2 = "PSM %s %s" % (str(row['filename']), str(row['tag']))
-        # revert log2 transformation and we'll transform again later
-        dict1.update({new_column_1:row['peak_area'], new_column_2:row['psm']})
+            
+        dict1.update({new_column_1:float(row['peak_area']), new_column_2:float(row['psm'])})
         rows_list.append(dict1)
-        #peptide_list.loc[index, new_column_1] = row['peak_area']
-        #peptide_list.loc[index, new_column_2] = row['psm']
-    
+
     peak_area_df = pd.DataFrame(rows_list)
     peptide_list = pd.concat([peptide_list, peak_area_df], axis='columns')
     peptide_list = peptide_list.drop(columns=['sample', 'tag', 'peak_area', 'filename', 'psm'])
-    
-    # turn ratio/label columns into separate columns per label
-#    peptide_list = peptide_list.pivot(index=['id', 
-                                             #'sequence',
-                                             #'accession',
-                                             #'gene',
-                                             #'description',
-                                             #'ppid',
-#
-                                                 #'sample'], 
-                                            #columns='label', values='ratio')
-    #psm_ratio_list = psm_ratio_list.reset_index()
-
+         
     data_cols = list(sorted(peptide_list.columns[6:]))
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", category=RuntimeWarning)  
