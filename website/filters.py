@@ -1,6 +1,7 @@
 import django_filters
 
-from projects.models import Project, Queue, Tag
+from projects.models import Project, Queue, Tag, SearchSetting
+
 from results.models import (
     Protein, 
     Peptide, 
@@ -10,6 +11,11 @@ from results.models import (
     DiffProtein,
 )
 
+TYPE_CHOICES = (
+    ('profile', 'Profile'),
+    ('proteome', 'Proteome'),
+)
+    
 class SummaryFilter(django_filters.FilterSet):
     project = django_filters.CharFilter(field_name='project__name')
     class Meta:
@@ -31,11 +37,7 @@ def get_tags_protein(request):
     project = request.GET.get('project','')
     
     return Tag.objects.filter(project__name=project)
-    
-TYPE_CHOICES = (
-    ('profile', 'Profile'),
-    ('proteome', 'Proteome'),
-)
+
 
 class ProteinListFilter(django_filters.FilterSet):
     project = django_filters.CharFilter(field_name='queue__project__name')
@@ -45,7 +47,7 @@ class ProteinListFilter(django_filters.FilterSet):
     file = django_filters.ModelChoiceFilter(field_name='queue__filename', 
                                             queryset=get_files_protein,
                                             label='Filename')
-    type = django_filters.ChoiceFilter(lookup_expr='iexact', choices = TYPE_CHOICES)
+    type = django_filters.AllValuesFilter(lookup_expr='iexact')
     tag = django_filters.ModelChoiceFilter(field_name='queue__tag__name', 
                                            queryset=get_tags_protein,
                                            label='Tag')
@@ -73,7 +75,7 @@ class PeptideListFilter(django_filters.FilterSet):
     file = django_filters.ModelChoiceFilter(field_name='queue__filename',
                                             queryset=get_files_protein,
                                             label='Filename')
-    type = django_filters.ChoiceFilter(lookup_expr='iexact', choices = TYPE_CHOICES)
+    type = django_filters.AllValuesFilter(lookup_expr='iexact')
     tag = django_filters.ModelChoiceFilter(field_name='queue__tag__name', 
                                            queryset=get_tags_protein,
                                            label='Tag')
@@ -89,7 +91,7 @@ class PsmListFilter(django_filters.FilterSet):
     file = django_filters.ModelChoiceFilter(field_name='queue__filename',
                                             queryset=get_files_protein,
                                             label='Filename')
-    type = django_filters.ChoiceFilter(lookup_expr='iexact', choices = TYPE_CHOICES)
+    type = django_filters.AllValuesFilter(lookup_expr='iexact')
     tag = django_filters.ModelChoiceFilter(field_name='queue__tag__name', 
                                            queryset=get_tags_protein,
                                            label='Tag')
@@ -105,15 +107,15 @@ class FileListFilter(django_filters.FilterSet):
 
 class SpeciesListFilter(django_filters.FilterSet):
     project = django_filters.CharFilter(field_name='project__name')
-    type = django_filters.ChoiceFilter(lookup_expr='iexact', choices = TYPE_CHOICES)
+    type = django_filters.AllValuesFilter(lookup_expr='iexact')
     class Meta:
         model = SpeciesSummary
         fields = ['project', 'type']
-        
-class FileSummaryFilter(django_filters.FilterSet):
+
+class FileSummaryFilter(django_filters.FilterSet):    
     project = django_filters.CharFilter(field_name='queue__project__name')
     file = django_filters.ModelChoiceFilter(field_name='queue__filename', queryset=get_files_protein)
-    type = django_filters.ChoiceFilter(lookup_expr='iexact', choices = TYPE_CHOICES)
+    type = django_filters.AllValuesFilter(lookup_expr='iexact')
     class Meta:
         model = SpeciesFileSummary
         fields = ['project', 'file', 'type']

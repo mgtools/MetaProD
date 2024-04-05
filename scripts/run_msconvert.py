@@ -59,10 +59,7 @@ def run_msconvert(queue_id):
                         os.path.join(install_folder, "temp", project, str(job), "software", "SearchGUI-%s" % settings.searchgui_ver))
                         
         write_debug("Starting msconvert: %s" % (filename), job, project)
-    
-        #thermorawfileparser
-        # mono ThermoRawFileParser.exe -i=/home/user/data_input/raw_file.raw -o=/home/user/data_input/output/ -f=0 -g -m=0
-        
+         
         # remove old file
         if os.path.exists(r"%s.mzML" % (os.path.join(settings.data_folder, project, "out", filename, filename))):
             os.remove(r"%s.mzML" % (os.path.join(settings.data_folder, project, "out", filename, filename)))

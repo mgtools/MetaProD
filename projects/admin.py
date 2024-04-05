@@ -149,6 +149,7 @@ class SearchSettingInline(admin.StackedInline):
             'classes': ('collapse in'),
             'fields': ('project',
                 ('use_crap', 'use_human'),
+                ('custom_fasta', 'perform_second_step'),
                 ('profile_type', 'profile_threshold', 'profile_method'),
                 ('multiplex', 'run_deqms', 'mzmine_run_mzmine'),
                 ('imput_threshold')
@@ -208,10 +209,12 @@ class SearchSettingAdmin(admin.ModelAdmin):
     fieldsets = (
         ('MetaProD', {
             'classes': ('collapse in'),
-            'fields': ('project',
-                ('use_crap', 'use_human'),
+            'fields': (('project'),
+                ('use_crap'), ('use_human'),
+                ('custom_fasta'),
+                ('perform_second_step'),
                 ('profile_type', 'profile_threshold', 'profile_method'),
-                ('multiplex', 'run_deqms', 'mzmine_run_mzmine'),
+                ('multiplex'), ('run_deqms'), ('mzmine_run_mzmine'),
                 ('imput_threshold')
             ),
             'description': 'MetaProD specific options',
@@ -224,11 +227,19 @@ class SearchSettingAdmin(admin.ModelAdmin):
                 ('frag_tol', 'frag_ppm'),
                 ('isotope_min', 'isotope_max'),
                 ('instrument', 'fragmentation'),
-                ('psm_fdr', 'peptide_fdr', 'protein_fdr'),
-                ('comet_profile', 'metamorpheus_profile', 'msgf_profile', 'myrimatch_profile', 'omssa_profile', 'xtandem_profile',),
-                ('comet_proteome', 'metamorpheus_proteome', 'msgf_proteome', 'myrimatch_proteome', 'omssa_proteome', 'xtandem_proteome',),
+                ('psm_fdr', 'peptide_fdr', 'protein_fdr')
             ),
             'description': 'SearchGUI/PeptideShaker specific options',
+        }), 
+        ('Profile/custom search engines', {
+            'classes': ('collapse', 'extrapretty'),
+            'fields': (('comet_profile'), ('metamorpheus_profile'), ('msgf_profile'), ('myrimatch_profile'), ('omssa_profile'), ('xtandem_profile',),
+            ),
+        }),
+        ('Proteome search engines', {
+            'classes': ('collapse', 'extrapretty'),
+            'fields': (('comet_proteome'), ('metamorpheus_proteome'), ('msgf_proteome'), ('myrimatch_proteome'), ('omssa_proteome'), ('xtandem_proteome',),
+            ),
         }),
         ('MZmine', {
             'classes': ('collapse', 'extrapretty'),

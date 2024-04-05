@@ -36,17 +36,17 @@ from .run_command import write_debug, settings
 def run(*args):
     parser = argparse.ArgumentParser()
     parser.add_argument('queue_id', type=int)
-    parser.add_argument('type', choices=['profile', 'proteome'])  
+    parser.add_argument('fasta_type', choices=['profile', 'proteome', 'custom'])  
     args2 = parser.parse_args(args)
     
     queue_id = args2.queue_id
-    type = args2.type
+    fasta_type = args2.fasta_type
 
-    read_results(queue_id, type)
+    read_results(queue_id, fasta_type)
 
 # loop through each queue entry where status is peptideshaker, find result
 # files, add to results, then update queue status to finished
-def read_results(queue_id, type):
+def read_results(queue_id, fasta_type):
     try:
         queue = Queue.objects.get(id=queue_id)
     except ObjectDoesNotExist:
@@ -67,20 +67,20 @@ def read_results(queue_id, type):
 
     # update this depending on reporter filenames
     if searchsetting.multiplex == False:
-        data_file_psm = r"%s%sps_%s_Default_PSM_Report.txt" % (os.path.join(settings.data_folder, project, "out", filename, type), os.sep, project)
+        data_file_psm = r"%s%sps_%s_Default_PSM_Report.txt" % (os.path.join(settings.data_folder, project, "out", filename, fasta_type), os.sep, project)
     else:
-        data_file_psm = r"%s%sr_%s_Default_PSM_Report.txt" % (os.path.join(settings.data_folder, project, "out", filename, type), os.sep, project)
+        data_file_psm = r"%s%sr_%s_Default_PSM_Report.txt" % (os.path.join(settings.data_folder, project, "out", filename, fasta_type), os.sep, project)
         
     if not os.path.exists(data_file_psm):
         write_debug("Missing PeptideShaker or Reporter output.", job, project)
         return False
     
-    delete = Protein.objects.filter(queue=queue).filter(type=type).delete()
-    delete = Peptide.objects.filter(queue=queue).filter(type=type).delete()
-    delete = Psm.objects.filter(queue=queue).filter(type=type).delete()
-    delete = PsmRatio.objects.filter(psm__queue=queue).filter(psm__type=type).delete()
-    delete = SpeciesSummary.objects.filter(project__name=project, type=type).delete()
-    delete = SpeciesFileSummary.objects.filter(queue=queue, type=type).delete()
+    delete = Protein.objects.filter(queue=queue).filter(type=fasta_type).delete()
+    delete = Peptide.objects.filter(queue=queue).filter(type=fasta_type).delete()
+    delete = Psm.objects.filter(queue=queue).filter(type=fasta_type).delete()
+    delete = PsmRatio.objects.filter(psm__queue=queue).filter(psm__type=fasta_type).delete()
+    delete = SpeciesSummary.objects.filter(project__name=project, type=fasta_type).delete()
+    delete = SpeciesFileSummary.objects.filter(queue=queue, type=fasta_type).delete()
     
     write_debug("Reading output.", job, project)
     data_psm  = pd.read_csv(data_file_psm, header=0, sep='\t', low_memory=False)
@@ -146,7 +146,7 @@ def read_results(queue_id, type):
                   validation=row['Validation'],
                   confidence=Decimal(row['Confidence [%]']),
                   title=row['Spectrum Title'],
-                  type=type,
+                  type=fasta_type,
                   peak_area = peak_area)
         # move to bulk_create and just loop again for ratios
         psm_list.append(psm)
@@ -168,7 +168,7 @@ def read_results(queue_id, type):
                                   sequence=row['Sequence'],
                                   mod_sequence=row['Modified Sequence'],
                                   title=row['Spectrum Title'],
-                                  type=type)
+                                  type=fasta_type)
             # insert the reporter ratio, which is the deisotoped intensity then normalized vs reference channel
             # (entry for that psm divided by entry for reference for that psm)
     
@@ -192,7 +192,7 @@ def read_results(queue_id, type):
     peptide_list_add = []
     peak_area_query = (Psm.objects.filter(queue=queue)
                                 .filter(peak_area__gt=0)
-                                .filter(type=type).values('mod_sequence')
+                                .filter(type=fasta_type).values('mod_sequence')
                                 .annotate(peak_area_sum=Sum('peak_area'))
                                 .annotate(peak_area_count=Count('peak_area'))
                                 .order_by('mod_sequence'))
@@ -238,7 +238,7 @@ def read_results(queue_id, type):
                           fixed_ptm=fixed_ptm,
                           val_num_psm=val_num_psm,
                           validation=validation,
-                          type=type,
+                          type=fasta_type,
                           peak_area=peak_area,
                           peak_area_psm=peak_area_psm)
         peptide_list_add.append(peptide)
@@ -254,9 +254,9 @@ def read_results(queue_id, type):
 
     write_debug("Linking the PSMs to a peptide.", job, project)
     # link the psms to a peptide now
-    query = (Psm.objects.filter(queue=queue).filter(type=type))
+    query = (Psm.objects.filter(queue=queue).filter(type=fasta_type))
     for entry in query:
-        peptide = Peptide.objects.get(queue=queue, mod_sequence=entry.mod_sequence, type=type)
+        peptide = Peptide.objects.get(queue=queue, mod_sequence=entry.mod_sequence, type=fasta_type)
         entry.peptide = peptide
         #entry.save()
     Psm.objects.bulk_update(query, ['peptide'], batch_size=1000)
@@ -264,9 +264,9 @@ def read_results(queue_id, type):
     end = time.time()
     runtime = end - start
     runtimex = RunTime.objects.get(queue=queue)
-    if type == 'profile':
+    if fasta_type == 'profile' or fasta_type == 'custom':
         runtimex.read_results_profile = runtime
-    elif type == 'proteome':
+    elif fasta_type == 'proteome':
         runtimex.read_results_proteome = runtime
     runtimex.save()
     return True

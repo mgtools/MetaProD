@@ -200,27 +200,35 @@ def run_queue(project, job):
                 queue.save()
                 
         elif queue.status == Queue.Status.READ_RESULTS_PROF:
-            write_debug("Starting read_results for project: %s, filename: %s, type: profile" % (project, filename), job, project)
-            if read_results(queue.id, "profile") == True:
+            if searchsetting.custom_fasta == True:
+                fasta_type = "custom"
+            else:
+                fasta_type = "profile"        
+            write_debug("Starting read_results for project: %s, filename: %s, type: %s." % (project, filename, fasta_type), job, project)
+            if read_results(queue.id, fasta_type) == True:
                 queue.status = Queue.Status.PROCESS_RESULTS_PROF
                 queue.error = 0
                 queue.save()
-                write_debug("Finished read_results for project: %s, filename: %s, type: profile" % (project, filename), job, project)
+                write_debug("Finished read_results for project: %s, filename: %s, type: %s." % (project, filename, fasta_type), job, project)
             else:
-                write_debug("Failed read_results for project: %s, filename: %s, type: profile." % (project, filename), job, project)
+                write_debug("Failed read_results for project: %s, filename: %s, type: %s." % (project, filename, fasta_type), job, project)
                 queue.error += 1 
                 queue.save()
 
         elif queue.status == Queue.Status.MZMINE_PROF:
+            if searchsetting.custom_fasta == True:
+                fasta_type = "custom"
+            else:
+                fasta_type = "profile"
             if searchsetting.mzmine_run_mzmine == True:
-                write_debug("Starting run_mzmine for project: %s, filename: %s, type: profile." % (project, filename), job, project)
+                write_debug("Starting run_mzmine for project: %s, filename: %s, type: %s." % (project, filename, fasta_type), job, project)
                 if run_mzmine(queue.id) == True:
                     queue.status = Queue.Status.READ_RESULTS_PROF
                     queue.error = 0
                     queue.save()
-                    write_debug("Finished run_mzmine for project: %s, filename: %s, type: profile." % (project, filename), job, project)
+                    write_debug("Finished run_mzmine for project: %s, filename: %s, type: %s." % (project, filename, fasta_type), job, project)
                 else:
-                    write_debug("Failed run_mzmine for project: %s, filename: %s, type: profile." % (project, filename), job, project)
+                    write_debug("Failed run_mzmine for project: %s, filename: %s, type: %s." % (project, filename, fasta_type), job, project)
                     queue.error += 1
                     queue.save()
             else:
@@ -245,33 +253,47 @@ def run_queue(project, job):
                 queue.save()
                 
         elif queue.status == Queue.Status.PEPTIDESHAKER_PROF:
+            if searchsetting.custom_fasta == True:
+                fasta_type = "custom"
+            else:
+                fasta_type = "profile"        
             # peptideshaker needs to be run for reporter
-            write_debug("Starting run_peptideshaker for project: %s, filename: %s, type: profile." % (project, filename), job, project)
+            write_debug("Starting run_peptideshaker for project: %s, filename: %s, type: %s." % (project, filename, fasta_type), job, project)
             if run_peptideshaker(queue.id) == True:
                 queue.status = Queue.Status.REPORTER_PROF
                 queue.error = 0
                 queue.save()
-                write_debug("Finished run_peptideshaker for project: %s, filename: %s, type: profile." % (project, filename), job, project)
+                write_debug("Finished run_peptideshaker for project: %s, filename: %s, type: %s." % (project, filename, fasta_type), job, project)
             else:
-                write_debug("Failed run_peptideshaker for project: %s, filename: %s, type: profile." % (project, filename), job, project)
+                write_debug("Failed run_peptideshaker for project: %s, filename: %s, type: %s." % (project, filename, fasta_type), job, project)
                 queue.error += 1
                 queue.save()
                 
         elif queue.status == Queue.Status.SEARCHGUI_PROF:
-            write_debug("Starting run_searchgui for project: %s, filename: %s, type: profile." % (project, filename), job, project)
+            if searchsetting.custom_fasta == True:
+                fasta_type = "custom"
+            else:
+                fasta_type = "profile"         
+
+            write_debug("Starting run_searchgui for project: %s, filename: %s, type: %s." % (project, filename, fasta_type), job, project)
             if run_searchgui(queue.id) == True:
                 queue.status = Queue.Status.PEPTIDESHAKER_PROF
                 queue.error = 0
                 queue.save()
-                write_debug("Finished run_searchgui for project: %s, filename: %s, type: profile." % (project, filename), job, project)
+                write_debug("Finished run_searchgui for project: %s, filename: %s, type: %s." % (project, filename, fasta_type), job, project)
             else:
-                write_debug("Failed run_searchgui for project: %s, filename: %s, type: profile." % (project, filename), job, project)
+                write_debug("Failed run_searchgui for project: %s, filename: %s, type: %s." % (project, filename, fasta_type), job, project)
                 queue.error += 1
                 queue.save()
                 
         # this only needs to be done once per file
         elif queue.status == Queue.Status.THERMO:
-            write_debug("Starting run_msconvert for project: %s, filename: %s, type: profile." % (project, filename), job, project)
+            if searchsetting.custom_fasta == True:
+                fasta_type = "custom"
+            else:
+                fasta_type = "profile"         
+                
+            write_debug("Starting run_msconvert for project: %s, filename: %s, type: %s." % (project, filename, fasta_type), job, project)
             if run_msconvert(queue.id) == True:
                 if searchsetting.profile == True:
                     queue.status = Queue.Status.SEARCHGUI_PROF
@@ -279,9 +301,9 @@ def run_queue(project, job):
                     queue.status = Queue.Status.SEARCHGUI_PROT
                 queue.error = 0
                 queue.save()
-                write_debug("Finished run_msconvert for project: %s, filename: %s, type: profile." % (project, filename), job, project)
+                write_debug("Finished run_msconvert for project: %s, filename: %s, type: %s." % (project, filename, fasta_type), job, project)                
             else:
-                write_debug("Failed run_msconvert for project: %s, filename: %s, type: profile." % (project, filename), job, project)
+                write_debug("Failed run_msconvert for project: %s, filename: %s, type: %s." % (project, filename, fasta_type), job, project)
                 queue.error += 1
                 queue.save()
                 
@@ -289,7 +311,12 @@ def run_queue(project, job):
         # wipe existing outputs and make sure the proper dirs exist
         # also wipe up the database
         elif queue.status == Queue.Status.FILE_ADDED:
-            write_debug("Cleaning up existing entries for project: %s, filename: %s, type: profile." % (project, filename), job, project)
+            if searchsetting.custom_fasta == True:
+                fasta_type = "custom"
+            else:
+                fasta_type = "profile"        
+
+            write_debug("Cleaning up existing entries for project: %s, filename: %s, type: %s." % (project, filename, fasta_type), job, project)
             delete = Protein.objects.filter(queue=queue).delete()
             delete = Peptide.objects.filter(queue=queue).delete()
             delete = Psm.objects.filter(queue=queue).delete()
@@ -305,9 +332,12 @@ def run_queue(project, job):
                 
             os.makedirs(os.path.join(settings.data_folder, project, "out", filename))
             
-            os.makedirs(os.path.join(settings.data_folder, project, "out", filename, "profile"))
+            if searchsetting.custom_fasta == True:
+                os.makedirs(os.path.join(settings.data_folder, project, "out", filename, "custom"))
+            else:
+                os.makedirs(os.path.join(settings.data_folder, project, "out", filename, "profile"))
             
-            os.makedirs(os.path.join(settings.data_folder, project, "out", filename, "proteome"))
+                os.makedirs(os.path.join(settings.data_folder, project, "out", filename, "proteome"))
 
             # clean up the temp dir
             if os.path.exists(os.path.join(install_folder, "temp", project, str(job))):

@@ -29,17 +29,17 @@ from .load_proteomes import load_proteins
 def run(*args):
     parser = argparse.ArgumentParser()
     parser.add_argument('queue_id', type=str)
-    parser.add_argument('type', choices=['profile', 'proteome'])
+    parser.add_argument('fasta_type', choices=['profile', 'proteome', 'custom'])
     args2 = parser.parse_args(args)
     try:
         queue_id = args2.queue_id
-        type = args2.type
+        fasta_type = args2.fasta_type
     except:
         return
         
-    process_results(queue_id, type)
+    process_results(queue_id, fasta_type)
 
-def process_results(queue_id, type):
+def process_results(queue_id, fasta_type):
     try:
         queue = Queue.objects.get(id=queue_id)
     except ObjectDoesNotExist:
@@ -50,7 +50,7 @@ def process_results(queue_id, type):
     job = queue.job
     filename = queue.filename
 
-    delete = Protein.objects.filter(queue=queue).filter(type=type).delete()
+    delete = Protein.objects.filter(queue=queue).filter(type=fasta_type).delete()
     
     try:
         searchsetting=SearchSetting.objects.get(project=project)
@@ -60,32 +60,35 @@ def process_results(queue_id, type):
         
     start = time.time()
     
-    if (type != "profile" and type != "proteome"):
-        write_debug("process_results() called with invalid type. Valid types are profile and proteome." % job, project)
+    if (fasta_type != "profile" and fasta_type != "proteome" and fasta_type != "custom"):
+        write_debug("process_results() called with invalid type. Valid types are custon, profile, and proteome." % job, project)
         return False
         
-    if (type == "profile" and queue.status < Queue.Status.PROCESS_RESULTS_PROF):
-        write_debug("Project: %s, filename %s, type %s is not set to the correct status. Correct to continue." % (project, filename, type), job, project)
+    if (fasta_type == "profile" and queue.status < Queue.Status.PROCESS_RESULTS_PROF):
+        write_debug("Project: %s, filename %s, type %s is not ready to process results. Correct to continue." % (project, filename, fasta_type), job, project)
         return False
-    elif (type == "proteome" and queue.status < Queue.Status.PROCESS_RESULTS_PROT):
-            write_debug("Project: %s, filename %s, type %s is not set to the correct status. Correct to continue." % (project, filename, type), job, project)
+    elif (fasta_type == "proteome" and queue.status < Queue.Status.PROCESS_RESULTS_PROT):
+            write_debug("Project: %s, filename %s, type %s is not ready to process results. Correct to continue." % (project, filename, fasta_type), job, project)
             return False
+    elif (fasta_type == "custom" and queue.status < Queue.Status.PROCESS_RESULTS_PROF):
+        write_debug("Project: %s, filename %s, type %s is not ready to process results. Correct to continue." % (project, filename, fasta_type), job, project)
+        return False
 
     if queue.skip == True:
-        write_debug("Project: %s, filename %s, type %s is set to be skipped. Unskip to continue." % (project, filename, type), job, project)
+        write_debug("Project: %s, filename %s, type %s is set to be skipped. Unskip to continue." % (project, filename, fasta_type), job, project)
         return False
         
     if queue.error >= 1 + settings.max_retries:
-        write_debug("Project: %s, filename %s, type %s has an error status of %s or higher. Reset error to continue." % (project, filename, type, (1 + settings.max_retries)), job, project)
+        write_debug("Project: %s, filename %s, type %s has an error status of %s or higher. Reset error to continue." % (project, filename, fasta_type, (1 + settings.max_retries)), job, project)
         return False
         
     # select the peptides for the file
-    query = (Peptide.objects.filter(queue=queue, type=type))
+    query = (Peptide.objects.filter(queue=queue, type=fasta_type))
 
     # if we have no results, we can't profile, so we need to skip the
     #  file if the profile method is file 
     if not query:
-        write_debug("No peptide results in database for project: %s, filename %s, type %s. Skipping process_results.py." % (project, filename, type), job, project)
+        write_debug("No peptide results in database for project: %s, filename %s, type %s. Skipping process_results.py." % (project, filename, fasta_type), job, project)
         return True
     
     # build the list of potential protein assignments
@@ -99,7 +102,7 @@ def process_results(queue_id, type):
                 accession_list[accession] = 1
 
     # we have to load the proteins here to get the species assignments
-    if type == "profile":
+    if fasta_type == "profile":
         try:
             load_proteins(project, job, "%s%s%s_%s_concatenated_target_decoy.fasta" % (os.path.join(settings.data_folder, project, "fasta", "profile"), os.sep, project, "profile"), accession_list.keys())
         except Exception as e:
@@ -206,7 +209,7 @@ def process_results(queue_id, type):
                           val_num_psm=float(row['val_num_psm']),
                           val_num_peptide=row['val_num_peptide'],
                           saf=saf,
-                          type=type,
+                          type=fasta_type,
                           peak_area=peak_area,
                           peak_area_psm=peak_area_psm)
         proteins_to_add.append(protein)
@@ -224,7 +227,7 @@ def process_results(queue_id, type):
         peptide = Peptide.objects.get(id=row['peptide_id'])
         fp = FastaProtein.objects.get(accession=row['accession'])
         protein = Protein.objects.get(fp=fp,
-                                      type=type,
+                                      type=fasta_type,
                                       queue=queue)
         peptide.protein = protein
         peptide.save()        
@@ -243,7 +246,7 @@ def process_results(queue_id, type):
     
 def calculate_nsaf(project, type):
     print("Updating NSAF values for %s %s" % (project, 
-                                                 type))
+                                                 fasta_type))
     
     if type == "profile":
         status = Queue.Status.FINISHED_PROF
@@ -260,10 +263,10 @@ def calculate_nsaf(project, type):
     # now that safs are done, need to calculate nsaf
     for entryq in queryq:
         # here we select collect the sum of all the saf values
-        query = (Protein.objects.filter(type=type)
-                        .filter(queue=entryq)
-                        .aggregate(sum=Sum('saf'))
-                    )
+        query = (Protein.objects.filter(type=fasta_type)
+                                .filter(queue=entryq)
+                                .aggregate(sum=Sum('saf'))
+                )
         # we can end up in a situation where we have no results for a file
         try:
             saf_sum = Decimal(query['sum'])
@@ -271,9 +274,8 @@ def calculate_nsaf(project, type):
             print("Warning: No results for queue_id: %s" % entryq.id)
             saf_sum = 1
     
-        query = (Protein.objects
-                .filter(type=type)
-                .filter(queue=entryq)
+        query = (Protein.objects.filter(type=fasta_type)
+                                .filter(queue=entryq)
                 )
 
         for entry in query:
@@ -281,18 +283,16 @@ def calculate_nsaf(project, type):
             entry.nsaf = nsaf
             entry.save()
             
-    print("Finished updating NSAF values for %s %s" % (project, 
-                                                       type))
+    print("Finished updating NSAF values for %s %s" % (project, fasta_type))
 
-def calculate_species_summary(project, type):
-    print("Calculating species summary for %s %s" % (project, 
-                                                     type))
+def calculate_species_summary(project, fasta_type):
+    print("Calculating species summary for %s %s" % (project, fasta_type))
     delete = SpeciesSummary.objects.filter(project__name=project,
-                                           type=type).delete()
+                                           type=fasta_type).delete()
                             
     # start with the protein info
     query = (Protein.objects.filter(queue__project__name=project)
-                            .filter(type=type)
+                            .filter(type=fasta_type)
                             .exclude(queue__skip=True)
                             .exclude(queue__error__gte=(1 + settings.max_retries))
                             .values('fp__ppid__proteome')
@@ -307,7 +307,7 @@ def calculate_species_summary(project, type):
         project = Project.objects.get(name=project)
         proteome = Proteome.objects.get(proteome=entry['fp__ppid__proteome'])
         species = SpeciesSummary(project=project,
-                                 type=type,
+                                 type=fasta_type,
                                  ppid=proteome,
                                  nsaf = Decimal(entry['nsaf']),
                                  val_num_protein=entry['total_pro'],
@@ -317,14 +317,14 @@ def calculate_species_summary(project, type):
                                  peak_area_psm=entry['peak_area_psm'])
         species.save()
 
-def calculate_species_file_summary(q_id, type):
+def calculate_species_file_summary(q_id, fasta_type):
     queue = Queue.objects.get(id=q_id)
     delete = SpeciesFileSummary.objects.filter(queue=queue,
-                                               type=type).delete()
+                                               type=fasta_type).delete()
                                                
     # start with the protein info
     query = (Protein.objects.filter(queue=queue)
-                            .filter(type=type)
+                            .filter(type=fasta_type)
                             .values('fp__ppid__proteome')
                             .annotate(total_psm=Sum('val_num_psm'), 
                                       total_pep=Sum('val_num_peptide'), 
@@ -336,7 +336,7 @@ def calculate_species_file_summary(q_id, type):
     for entry in query:
         proteome = Proteome.objects.get(proteome=entry['fp__ppid__proteome'])
         species = SpeciesFileSummary(queue=queue,
-                                     type=type,
+                                     type=fasta_type,
                                      ppid=proteome,
                                      nsaf = Decimal(entry['nsaf']),
                                      val_num_protein=entry['total_pro'],

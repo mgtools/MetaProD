@@ -68,6 +68,10 @@ def generate_fasta(project, type):
         print("This feature not yet implemented so turn profiling on in the searchsettings.")
         return 0
 
+    if searchsetting.custom_fasta == True:
+        type = "custom"
+        print("Project is set to use a custom FASTA.")
+        
     samples = {}
     if type == "proteome":
         if not os.path.exists(os.path.join(settings.data_folder, project, "fasta")):
@@ -144,6 +148,23 @@ def generate_fasta(project, type):
 
         fasta_file_concat = "%s%s%s_profile_concatenated_target_decoy.fasta" % (os.path.join(settings.data_folder, project, "fasta", "profile"), os.sep, project)
                 
+        if not os.path.exists(fasta_file_concat):
+            print("Missing FASTA file.", project, "fasta")
+            print("Failed to generate profile FASTA for %s." % (project))
+    
+    elif type == "custom":
+        # move crap to somewhere accessible without project
+        if os.path.exists(os.path.join(os.getcwd(), "scripts", "crap.fasta")):
+            if os.path.exists(os.path.join(settings.install_folder, "fasta", "crap.fasta")):
+                os.remove(os.path.join(settings.install_folder, "fasta", "crap.fasta"))
+            if not os.path.exists(os.path.join(settings.install_folder, "fasta")):
+                os.makedirs(os.path.join(settings.install_folder, "fasta"))
+            shutil.copy(os.path.join(os.getcwd(), "scripts", "crap.fasta"), os.path.join(settings.install_folder, "fasta", "crap.fasta"))
+
+        generate_custom_fasta(project)
+        
+        fasta_file_concat = "%s%s%s_custom_concatenated_target_decoy.fasta" % (os.path.join(settings.data_folder, project, "fasta", "custom"), os.sep, project)
+
         if not os.path.exists(fasta_file_concat):
             print("Missing FASTA file.", project, "fasta")
             print("Failed to generate profile FASTA for %s." % (project))
@@ -440,6 +461,63 @@ def generate_profile_fasta(project):
 
         print("Done generating profile FASTA.")
     
+def generate_custom_fasta(project):
+    try:
+        searchsetting=SearchSetting.objects.get(project__name=project)
+    except:
+        print("Searchsetting does not exist for %s. Make sure the project and searchsetting are added first." % (project))
+        return 0
+        
+    # make sure the fasta dir exists
+    if not os.path.exists(os.path.join(settings.data_folder, project, "fasta")):
+        os.makedirs(os.path.join(settings.data_folder, project, "fasta"))
+
+    if not os.path.exists(os.path.join(settings.data_folder, project, "fasta", "custom")):
+        os.makedirs(os.path.join(settings.data_folder, project, "fasta", "custom"))
+        
+    if not os.path.exists("%s%s%s.fasta" % (os.path.join(settings.data_folder, project, "fasta"), os.sep, project)):
+        print("Custom FASTA does not exist.")
+        print("Place the custom fasta in: %s%s%s.fasta" % (os.path.join(settings.data_folder, project, "fasta"), os.sep, project))
+        return
+
+    fasta_file = "%s%s%s_%s.fasta" % (os.path.join(settings.data_folder, project, "fasta", "custom"), os.sep, project, "custom")
+    fasta_file_concat = "%s%s%s_%s_concatenated_target_decoy.fasta" % (os.path.join(settings.data_folder, project, "fasta", "custom"), os.sep, project, "custom")
+    
+    if os.path.exists(fasta_file):
+        os.remove(fasta_file)
+ 
+    if os.path.exists(fasta_file_concat):
+        os.remove(fasta_file_concat)
+        
+    # now copy the base files
+    shutil.copy("%s%s%s.fasta" % (os.path.join(settings.data_folder, project, "fasta"), os.sep, project), 
+                "%s%s%s_%s.fasta" % (os.path.join(settings.data_folder, project, "fasta", "custom"), os.sep, project, "custom"))
+
+    if searchsetting.use_human == True:
+        print("Appending human proteome to FASTA file.")
+        if not os.path.exists("%s%shuman.fasta" % (os.path.join(settings.install_folder, "fasta"), os.sep)):
+            print("human.fasta does not exist. Remove full.fasta.gz and run generate_fasta again.")
+            return
+        with open(fasta_file, "a") as f_out:
+            with open(os.path.join(settings.install_folder, "fasta", "human.fasta"), "r") as f_in:
+                shutil.copyfileobj(f_in, f_out)
+            f_out.write(os.linesep)
+
+    if searchsetting.use_crap == True:
+        print("Appending CRAP database to FASTA file.")
+        # copy CRAP to destination file
+        with open(fasta_file, "a") as f_out:
+            with open(os.path.join(settings.install_folder, "fasta", "crap.fasta"), "r") as f_in:
+                shutil.copyfileobj(f_in, f_out)
+            f_out.write(os.linesep)
+
+    success = generate_decoy(project, fasta_file)
+    
+    # this may not work with custom FASTA files so we may need to add a dummy proteome or something
+    #if success == True:
+    #    load_proteomes()
+
+    print("Done generating custom FASTA.")
     
 # should only need the filename for this as the decoy will end up in the same dir as the filename
 def generate_decoy(project, fasta_file):
@@ -456,8 +534,6 @@ def generate_decoy(project, fasta_file):
         print("Missing SearchGUI install.")
         return False
         
-
-    
     # copy searchgui into temp
     shutil.copytree(os.path.join(settings.install_folder, "software", "SearchGUI-%s" % settings.searchgui_ver), 
                     os.path.join(settings.data_folder, project, "fasta", "temp", "software", "SearchGUI-%s" % settings.searchgui_ver))
@@ -469,8 +545,8 @@ def generate_decoy(project, fasta_file):
                 "-decoy"
                 ], "fasta", project)
     
-    fasta_file_concat = "%s%s%s_profile_concatenated_target_decoy.fasta" % (os.path.join(settings.data_folder, project, "fasta", "profile"), os.sep, project)
-    
+    fasta_file_concat = "%s_concatenated_target_decoy.fasta" % (fasta_file[0:-6])
+
     if os.path.exists(os.path.join(fasta_file_concat)):
         print("Finished generating decoy sequences.")    
         shutil.rmtree(os.path.join(settings.data_folder, project, "fasta", "temp"))

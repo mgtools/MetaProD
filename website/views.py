@@ -161,7 +161,12 @@ def summary(request, project):
     files = (Queue.objects.filter(project__name=project,
                                   skip=False)
                           .values('id', 'filename'))
-    
+    searchsetting=SearchSetting.objects.get(project=project)
+    if searchsetting.custom_fasta == True:
+        fasta_type = "custom"
+    else:
+        fasta_type = "not_custom"
+    custom_dict = {}
     profile_dict = {}
     proteome_dict = {}
     trfp = 0
@@ -171,16 +176,47 @@ def summary(request, project):
     rere = 0
     prre = 0
     mzre = 0
+    total_psm_cust = 0
     total_psm_prof = 0
     total_psm_prot = 0
+    total_pep_cust = 0
     total_pep_prof = 0
     total_pep_prot = 0
+    total_pro_cust = 0
     total_pro_prof = 0
     total_pro_prot = 0
     for file in files:
+        custom_dict[file['id']] = {}
+        custom_dict[file['id']]['project'] = project
+        custom_dict[file['id']]['filename'] = file['filename']        
+        proteins_cust = (
+            Protein.objects.filter(
+                queue__project__name=project, 
+                type='custom', 
+                queue__id=file['id']
+            ).count()
+        )
+        custom_dict[file['id']]['protein'] = proteins_cust
+        peptides_cust = (
+            Peptide.objects.filter(
+                queue__project__name=project, 
+                type='custom', 
+                queue__id=file['id']
+            ).count()
+        )
+        custom_dict[file['id']]['peptide'] = peptides_cust
+        psms_cust = (
+            Psm.objects.filter(
+                queue__project__name=project, 
+                type='custom', 
+                queue__id=file['id']
+            ).count()
+        )    
+        custom_dict[file['id']]['psm'] = psms_cust
+
         profile_dict[file['id']] = {}
         profile_dict[file['id']]['project'] = project
-        profile_dict[file['id']]['filename'] = file['filename']
+        profile_dict[file['id']]['filename'] = file['filename']    
         proteins_prof = (
             Protein.objects.filter(
                 queue__project__name=project, 
@@ -205,6 +241,7 @@ def summary(request, project):
             ).count()
         )
         profile_dict[file['id']]['psm'] = psms_prof
+        
         proteome_dict[file['id']] = {}
         proteome_dict[file['id']]['project'] = project
         proteome_dict[file['id']]['filename'] = file['filename']
@@ -245,19 +282,26 @@ def summary(request, project):
         except:
             pass
         
+        total_psm_cust += psms_cust
         total_psm_prof += psms_prof
         total_psm_prot += psms_prot
+        
+        total_pep_cust += peptides_cust
         total_pep_prof += peptides_prof
         total_pep_prot += peptides_prot
+        
+        total_pro_cust += proteins_cust
         total_pro_prof += proteins_prof
         total_pro_prot += proteins_prot
         
     runtime_dict = {'trfp':trfp, 'sgui':sgui, 'peps':peps, 'repo':repo,
                     'rere':rere, 'prre':prre, 'mzre':mzre}
-    totals_dict = {'pep_prof': total_pep_prof, 'pep_prot': total_pep_prot,
-                   'psm_prof': total_psm_prof, 'psm_prot': total_psm_prot,
-                   'pro_prof': total_pro_prof, 'pro_prot': total_pro_prot}
-                   
+    totals_dict = {'pep_cust': total_pep_cust, 'pep_prof': total_pep_prof, 'pep_prot': total_pep_prot,
+                   'psm_cust': total_psm_cust, 'psm_prof': total_psm_prof, 'psm_prot': total_psm_prot,
+                   'pro_cust': total_pro_cust, 'pro_prof': total_pro_prof, 'pro_prot': total_pro_prot,
+                  }
+    
+    # omit this for custom because it's not necessarily possible
     top_x_ppid_psm_profile = (
         Protein.objects.filter(type='profile')
                        .filter(queue__project__name=project)
@@ -288,8 +332,9 @@ def summary(request, project):
     )
                                              
     return render(request, 
-        'website/summary.html', 
-        {'profile_dict': profile_dict,
+        'website/summary.html',
+        {'custom_dict': custom_dict,
+         'profile_dict': profile_dict,
          'proteome_dict': proteome_dict,
          'top_x_ppid_psm_profile': top_x_ppid_psm_profile,
          'top_x_ppid_psm_proteome': top_x_ppid_psm_proteome,

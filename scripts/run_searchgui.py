@@ -35,19 +35,25 @@ def run_searchgui(queue_id):
     install_folder = settings.install_folder
     
     start = time.time()
-    
-    if queue.status == Queue.Status.SEARCHGUI_PROF:
-        type = "profile"
-        fasta_file = "%s%s%s_%s_concatenated_target_decoy.fasta" % (os.path.join(settings.data_folder, project, "fasta", type), os.sep, project, type)
-    elif queue.status == Queue.Status.SEARCHGUI_PROT:
-        type = "proteome"
-        fasta_file = "%s%s%s_%s_%s_concatenated_target_decoy.fasta" % (os.path.join(settings.data_folder, project, "fasta", type, filename), os.sep, project, filename, type)
-    
+
     try:
         searchsetting=SearchSetting.objects.get(project=project)
     except ObjectDoesNotExist:
         write_debug("Missing searchsetting for project: %s." % project, job, project)
         return False
+
+    if queue.status == Queue.Status.SEARCHGUI_PROF:
+        if searchsetting.custom_fasta == True:
+            type = "custom"
+            fasta_file = "%s%s%s_%s_concatenated_target_decoy.fasta" % (os.path.join(settings.data_folder, project, "fasta", type), os.sep, project, type)     
+        else:
+            type = "profile"
+            fasta_file = "%s%s%s_%s_concatenated_target_decoy.fasta" % (os.path.join(settings.data_folder, project, "fasta", type), os.sep, project, type)
+    elif queue.status == Queue.Status.SEARCHGUI_PROT:
+        type = "proteome"
+        fasta_file = "%s%s%s_%s_%s_concatenated_target_decoy.fasta" % (os.path.join(settings.data_folder, project, "fasta", type, filename), os.sep, project, filename, type)
+    
+
 
     if not os.path.exists(os.path.join(install_folder, "software", "SearchGUI-%s" % settings.searchgui_ver, "SearchGUI-%s.jar" % settings.searchgui_ver)):
         write_debug("Missing SearchGUI install.", job, project)
@@ -162,7 +168,7 @@ def run_searchgui(queue_id):
         threads = settings.threads
         
     write_debug("Starting searchgui: %s" % (filename), job, project)            
-    if type == "profile":
+    if type == "profile" or type == "custom":
         xtandem = int(searchsetting.xtandem_profile)
         msgf = int(searchsetting.msgf_profile)
         comet = int(searchsetting.comet_profile)
@@ -282,7 +288,7 @@ def run_searchgui(queue_id):
     end = time.time()
     runtime = end-start
     runtimex = RunTime.objects.get(queue=queue)
-    if type == 'profile':
+    if type == 'profile' or type == 'custom':
         runtimex.searchgui_profile = runtime
     elif type == 'proteome':
         runtimex.searchgui_proteome = runtime

@@ -314,12 +314,12 @@ class SearchSetting(models.Model):
     # this dataset is multiplexed
     multiplex = models.BooleanField(
         default=False, 
-        help_text="Data is multiplexed"
+        help_text="Data is multiplexed."
     )
     # use the homo sapien reference proteome in the FASTA
     use_human = models.BooleanField(
         default=True, 
-        help_text="Include human proteome in FASTA file"
+        help_text="Include human proteome in FASTA file."
     )
     # pool results from project to profile versus profile on individual samples
     profile_type = models.IntegerField(
@@ -330,7 +330,7 @@ class SearchSetting(models.Model):
     # use contaminants database in FASTA
     use_crap = models.BooleanField(
         default=True, 
-        help_text="Include CRAP database in FASTA file"
+        help_text="Include CRAP database in FASTA file."
     )
     # profile first? if False, then we do a single-step search
     profile = models.BooleanField(
@@ -339,7 +339,7 @@ class SearchSetting(models.Model):
     )
     profile_threshold = models.IntegerField(
         default=90, 
-        help_text="Top percent of NSAF to include when profiling"
+        help_text="Top percent of NSAF to include when profiling."
     )
     run_deqms = models.BooleanField(
         "Run DEqMS",
@@ -384,7 +384,15 @@ class SearchSetting(models.Model):
         ],
         help_text = "MZmine targeted peak detection m/z PPM tolerance."
     )
-        
+    custom_fasta = models.BooleanField(
+        default=False, 
+        help_text="Use a custom FASTA. This must be called project_name.fasta and placed in the project fasta directory."
+    ) 
+    perform_second_step = models.BooleanField(
+        default=True,
+        help_text="Perform second search step. Disabling is useful for a more traditional 1-step MS search. If checked, only the \"profile\" step is performed."
+    )
+    
     def __str__(self):
         return self.project.name
     

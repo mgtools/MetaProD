@@ -30,6 +30,37 @@
 </div>
 <h4>Summary Information Per File</h4>
 <hr>
+{% if fasta_type == custom %}
+<h5>Counts for Custom</h5>
+<div class="table-container">
+<table class="table table-hover">
+<thead>
+<tr>
+<th>Filename</th>
+<th># Proteins</th>
+<th># Peptides</th>
+<th># PSM</th>
+</tr>
+</thead>
+<tbody>
+{% for key, value in custom_dict.items %}
+<tr>
+<td><a href="{% spurl base="{\% url 'file_summary' %\}" add_query="project={{ value.project }}" add_query="file={{ key }}" add_query="type=custom" %}">{{ value.filename }}</a></td>
+<td><a href="{% spurl base="{\% url 'protein_list' %\}" add_query="project={{ value.project }}" add_query="file={{ key }}" add_query="type=custom" add_query="sort=-nsaf" %}">{{ value.protein }}</a></td>
+<td><a href="{% spurl base="{\% url 'peptide_list' %\}" add_query="project={{ value.project }}" add_query="file={{ key }}" add_query="type=custom" add_query="sort=-val_num_psm" %}">{{ value.peptide }}</a></td>
+<td><a href="{% spurl base="{\% url 'psm_list' %\}" add_query="project={{ value.project }}" add_query="file={{ key }}" add_query="type=custom" add_query="sort=peptide__protein__fp__accession" %}">{{ value.psm }}</a></td>
+</tr>
+{% endfor %}
+<tr>
+<td>Totals</td>
+<td>{{ totals.pro_cust }}</td>
+<td>{{ totals.pep_cust }}</td>
+<td>{{ totals.psm_cust }}</td>
+</tr>
+</tbody>
+</table>
+</div>
+{% elif fasta_type != custom %}
 <h5>Counts for Profile</h5>
 <div class="table-container">
 <table class="table table-hover">
@@ -172,6 +203,7 @@
 <td>{{ species.total }}</td>
 </tr>
 {% endfor %}
+{% endif %}
 </tbody>
 </table>
 </div>
