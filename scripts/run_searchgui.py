@@ -118,39 +118,57 @@ def run_searchgui(queue_id):
             
     # put this in the temp folder from now on
     write_debug("Generating SearchGUI PAR file.", job, project)
+    command = ["timeout", "600",
+               "java", "-Xms%s" % settings.memory, "-Xmx%s" % settings.memory, 
+               "-cp", os.path.join(install_folder, "temp", project, str(job), "software", "SearchGUI-%s" % settings.searchgui_ver, "SearchGUI-%s.jar" % settings.searchgui_ver),
+               "eu.isas.searchgui.cmd.IdentificationParametersCLI",
+               "-out", "%s%s%s_%s.par" % (os.path.join(settings.data_folder, project, "out", filename, type), os.sep, project, type),
+               "-min_charge", "%s" % searchsetting.min_charge,
+               "-max_charge", "%s" % searchsetting.max_charge,
+               "-import_peptide_length_min", "%s" % searchsetting.min_peptide_length, # min peptide length
+               "-import_peptide_length_max", "%s" % searchsetting.max_peptide_length, #max peptide length
+               "-psm_fdr", "%s" % searchsetting.psm_fdr, # fdr precent
+               "-peptide_fdr", "%s" % searchsetting.peptide_fdr,
+               "-protein_fdr", "%s" % searchsetting.protein_fdr,
+               "-useGeneMapping", "0",
+               "-updateGeneMapping", "0",
+               "-prec_tol", "%s" % searchsetting.prec_tol,
+               "-prec_ppm", "%s" % searchsetting.prec_ppm,
+               "-frag_tol", "%s" % searchsetting.frag_tol,
+               "-frag_ppm", "%s" % searchsetting.frag_ppm,
+               "-min_isotope", "%s" % searchsetting.isotope_min,
+               "-max_isotope", "%s" % searchsetting.isotope_max,
+               "-msgf_instrument", "%s" % searchsetting.instrument,
+               "-msgf_fragmentation", "%s" % searchsetting.fragmentation,
+               "-simplify_groups", "0",
+               "-comet_batch_size", "10000",
+               "-myrimatch_min_pep_length", "%s" % searchsetting.min_peptide_length,
+               "-myrimatch_max_pep_length", "%s" % searchsetting.max_peptide_length,
+               "-msgf_min_pep_length", "%s" % searchsetting.min_peptide_length,
+               "-msgf_max_pep_length", "%s" % searchsetting.max_peptide_length,
+               "-omssa_min_pep_length", "%s" % searchsetting.min_peptide_length,
+               "-omssa_max_pep_length", "%s" % searchsetting.max_peptide_length,
+               "-comet_min_pep_length", "%s" % searchsetting.min_peptide_length,
+               "-comet_max_pep_length", "%s" % searchsetting.max_peptide_length,
+               "-meta_morpheus_min_pep_length", "%s" % searchsetting.min_peptide_length,
+               "-meta_morpheus_max_pep_length", "%s" % searchsetting.max_peptide_length,
+               ]
+   
+    if len(mod_list_f) > 0:
+        command.extend(["-fixed_mods", mod_list_f])
+        
+    if len(mod_list_v) > 0:
+        command.extend(["-variable_mods", mod_list_v])
+        
+    if len(enzyme_list_name) > 0:
+        command.extend(["-digestion", "0"])
+        command.extend(["-enzyme", "%s" % enzyme_list_name])
+        command.extend(["-specificity", "%s" % enzyme_list_specificity])
+        command.extend(["-mc", "%s" % enzyme_list_mc])
+        
+        
     # timeout after 10 mins
-    success = run_command(["timeout", "600", 
-                            "java", "-Xms%s" % settings.memory, "-Xmx%s" % settings.memory, 
-                            "-cp", os.path.join(install_folder, "temp", project, str(job), "software", "SearchGUI-%s" % settings.searchgui_ver, "SearchGUI-%s.jar" % settings.searchgui_ver), 
-                            "eu.isas.searchgui.cmd.IdentificationParametersCLI",
-                            "-out", "%s%s%s_%s.par" % (os.path.join(settings.data_folder, project, "out", filename, type), os.sep, project, type),
-                            "-fixed_mods", mod_list_f,
-                            "-variable_mods", mod_list_v,
-                            # type of digestion. 0 is enzyme, 1 is unspecific, 2 is whole protein. recommended 0 
-                            "-digestion", "0",
-                            "-enzyme", "%s" % enzyme_list_name,
-                            "-specificity", "%s" % enzyme_list_specificity, # 0 spec, 1 semi
-                            "-mc", "%s" % enzyme_list_mc, # missed cleavages
-                            "-min_charge", "%s" % searchsetting.min_charge,
-                            "-max_charge", "%s" % searchsetting.max_charge,
-                            "-import_peptide_length_min", "%s" % searchsetting.min_peptide_length, # min peptide length
-                            "-import_peptide_length_max", "%s" % searchsetting.max_peptide_length, #max peptide length
-                            "-psm_fdr", "%s" % searchsetting.psm_fdr, # fdr precent
-                            "-peptide_fdr", "%s" % searchsetting.peptide_fdr,
-                            "-protein_fdr", "%s" % searchsetting.protein_fdr,
-                            "-useGeneMapping", "0",
-                            "-updateGeneMapping", "0",
-                            "-prec_tol", "%s" % searchsetting.prec_tol,
-                            "-prec_ppm", "%s" % searchsetting.prec_ppm,
-                            "-frag_tol", "%s" % searchsetting.frag_tol,
-                            "-frag_ppm", "%s" % searchsetting.frag_ppm,
-                            "-min_isotope", "%s" % searchsetting.isotope_min,
-                            "-max_isotope", "%s" % searchsetting.isotope_max,
-                            "-msgf_instrument", "%s" % searchsetting.instrument,
-                            "-msgf_fragmentation", "%s" % searchsetting.fragmentation,
-                            "-simplify_groups", "0",
-                            "-comet_batch_size", "10000"
-                          ], job, project)
+    success = run_command(command, job, project)
     
     if success == 0 or not os.path.exists("%s%s%s_%s.par" % (os.path.join(settings.data_folder, project, "out", filename, type), os.sep, project, type)):
         write_debug("Missing searchgui PAR file.", job, project)
