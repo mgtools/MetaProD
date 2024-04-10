@@ -152,6 +152,8 @@ def run_searchgui(queue_id):
                "-comet_max_pep_length", "%s" % searchsetting.max_peptide_length,
                "-meta_morpheus_min_pep_length", "%s" % searchsetting.min_peptide_length,
                "-meta_morpheus_max_pep_length", "%s" % searchsetting.max_peptide_length,
+               #"-msgf_num_tasks", "%s" % "-4",
+               "-digestion", "%s" % searchsetting.digestion
                ]
    
     if len(mod_list_f) > 0:

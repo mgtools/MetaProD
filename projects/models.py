@@ -157,7 +157,11 @@ class SearchSetting(models.Model):
         help_text="Project name",
         primary_key=True
     )
-    digestion = models.IntegerField(choices=Digestion.choices, default=0)
+    digestion = models.IntegerField(
+        choices=Digestion.choices, 
+        default=0,
+        help_text="Type of protein digestion to consider."
+    )       
     min_peptide_length = models.IntegerField(
         default=8, 
         help_text="Minimum peptide length to include"

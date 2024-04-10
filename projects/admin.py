@@ -227,7 +227,8 @@ class SearchSettingAdmin(admin.ModelAdmin):
                 ('frag_tol', 'frag_ppm'),
                 ('isotope_min', 'isotope_max'),
                 ('instrument', 'fragmentation'),
-                ('psm_fdr', 'peptide_fdr', 'protein_fdr')
+                ('psm_fdr', 'peptide_fdr', 'protein_fdr'),
+                ('digestion')
             ),
             'description': 'SearchGUI/PeptideShaker specific options',
         }), 
