@@ -1,6 +1,6 @@
 # should sort the order of the display by the queue order
 import argparse
-from projects.models import Queue
+from projects.models import Queue, Project
 
 
 def run(*args):
@@ -12,7 +12,16 @@ def run(*args):
     check_status(project)
 
 def check_status(project):
+    p = Project.objects.filter(name=project)
+    if len(p) == 0:
+        print("No project found.")
+        return
+        
     queue = Queue.objects.filter(project__name=project)
+    if len(queue) == 0:
+        print("No queue entries for project: %s" % project)
+        return
+        
     statuses = {
         'File added': 0,
         'Ready for thermorawfileparser': 0,
@@ -44,6 +53,7 @@ def check_status(project):
                 errors += 1
         if (q.get_status_display() != 'File is finished proteome step'
             and q.get_status_display() != 'File is finished and cleaned up'
+            and q.get_status_display() != 'File is finished profile step'
             and q.skip == False):
             if q.job not in jobs:
                 jobs.append(q.job)
