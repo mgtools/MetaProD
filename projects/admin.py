@@ -147,11 +147,12 @@ class SearchSettingInline(admin.StackedInline):
     fieldsets = (
         ('MetaProD', {
             'classes': ('collapse in'),
-            'fields': ('project',
-                ('use_crap', 'use_human'),
-                ('custom_fasta', 'perform_second_step'),
+            'fields': (('project'),
+                ('use_crap'), ('use_human', 'human_fasta'),
+                ('custom_fasta'),
+                ('perform_second_step'),
                 ('profile_type', 'profile_threshold', 'profile_method'),
-                ('multiplex', 'run_deqms', 'mzmine_run_mzmine'),
+                ('multiplex'), ('run_deqms'), ('mzmine_run_mzmine'),
                 ('imput_threshold')
             ),
             'description': 'MetaProD specific options',
@@ -165,10 +166,19 @@ class SearchSettingInline(admin.StackedInline):
                 ('isotope_min', 'isotope_max'),
                 ('instrument', 'fragmentation'),
                 ('psm_fdr', 'peptide_fdr', 'protein_fdr'),
-                ('comet_profile', 'metamorpheus_profile', 'msgf_profile', 'myrimatch_profile', 'omssa_profile', 'xtandem_profile',),
-                ('comet_proteome', 'metamorpheus_proteome', 'msgf_proteome', 'myrimatch_proteome', 'omssa_proteome', 'xtandem_proteome',),
+                ('digestion')
             ),
             'description': 'SearchGUI/PeptideShaker specific options',
+        }), 
+        ('Profile/custom search engines', {
+            'classes': ('collapse', 'extrapretty'),
+            'fields': (('comet_profile'), ('metamorpheus_profile'), ('msgf_profile'), ('myrimatch_profile'), ('omssa_profile'), ('xtandem_profile'), ('sage_profile'),
+            ),
+        }),
+        ('Proteome search engines', {
+            'classes': ('collapse', 'extrapretty'),
+            'fields': (('comet_proteome'), ('metamorpheus_proteome'), ('msgf_proteome'), ('myrimatch_proteome'), ('omssa_proteome'), ('xtandem_proteome'), ('sage_proteome'),
+            ),
         }),
         ('MZmine', {
             'classes': ('collapse', 'extrapretty'),
@@ -210,7 +220,7 @@ class SearchSettingAdmin(admin.ModelAdmin):
         ('MetaProD', {
             'classes': ('collapse in'),
             'fields': (('project'),
-                ('use_crap'), ('use_human'),
+                ('use_crap'), ('use_human', 'human_fasta'),
                 ('custom_fasta'),
                 ('perform_second_step'),
                 ('profile_type', 'profile_threshold', 'profile_method'),
@@ -234,12 +244,12 @@ class SearchSettingAdmin(admin.ModelAdmin):
         }), 
         ('Profile/custom search engines', {
             'classes': ('collapse', 'extrapretty'),
-            'fields': (('comet_profile'), ('metamorpheus_profile'), ('msgf_profile'), ('myrimatch_profile'), ('omssa_profile'), ('xtandem_profile',),
+            'fields': (('comet_profile'), ('metamorpheus_profile'), ('msgf_profile'), ('myrimatch_profile'), ('omssa_profile'), ('xtandem_profile'), ('sage_profile'),
             ),
         }),
         ('Proteome search engines', {
             'classes': ('collapse', 'extrapretty'),
-            'fields': (('comet_proteome'), ('metamorpheus_proteome'), ('msgf_proteome'), ('myrimatch_proteome'), ('omssa_proteome'), ('xtandem_proteome',),
+            'fields': (('comet_proteome'), ('metamorpheus_proteome'), ('msgf_proteome'), ('myrimatch_proteome'), ('omssa_proteome'), ('xtandem_proteome'), ('sage_proteome'),
             ),
         }),
         ('MZmine', {

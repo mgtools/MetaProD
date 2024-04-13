@@ -150,6 +150,10 @@ class SearchSetting(models.Model):
         NSAF = 0, _('NSAF')
         PSM = 1, _('PSM')
         PEAK_AREA = 2, _('Peak Area')
+    
+    class HumanFasta(models.TextChoices):
+        Uniprot = 'UNIPROT', _('Uniprot')
+#        PPG = 'PPG', _('PPG')
         
     project = models.OneToOneField(
         'Project', 
@@ -302,7 +306,17 @@ class SearchSetting(models.Model):
         "MyriMatch", 
         default=False, 
         help_text="Use Myrimatch Search Algorithm"
-    )          
+    )
+    sage_profile = models.BooleanField(
+        "Sage",
+        default=False,
+        help_text="Use Sage Search Algorithm"
+    )
+    sage_proteome = models.BooleanField(
+        "Sage",
+        default=False,
+        help_text="Use Sage Search Algorithm"
+    )
     mods = models.ManyToManyField(
         'ModList', 
         related_name="SearchSettingMods",
@@ -396,7 +410,11 @@ class SearchSetting(models.Model):
         default=True,
         help_text="Perform second search step. Disabling is useful for a more traditional 1-step MS search. If checked, only the \"profile\" step is performed."
     )
-    
+    human_fasta = models.TextField(
+        choices=HumanFasta.choices,
+        default='Uniprot',
+        help_text="Which human FASTA file to use."
+    )
     def __str__(self):
         return self.project.name
     

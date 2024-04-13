@@ -152,7 +152,9 @@ def run_searchgui(queue_id):
                "-comet_max_pep_length", "%s" % searchsetting.max_peptide_length,
                "-meta_morpheus_min_pep_length", "%s" % searchsetting.min_peptide_length,
                "-meta_morpheus_max_pep_length", "%s" % searchsetting.max_peptide_length,
-               #"-msgf_num_tasks", "%s" % "-4",
+               "-sage_min_pep_length", "%s" % searchsetting.min_peptide_length,
+               "-sage_max_pep_length", "%s" % searchsetting.max_peptide_length,
+               "-msgf_num_tasks", "%s" % "-6",
                "-digestion", "%s" % searchsetting.digestion
                ]
    
@@ -195,6 +197,7 @@ def run_searchgui(queue_id):
         omssa = int(searchsetting.omssa_profile)
         metamorpheus = int(searchsetting.metamorpheus_profile)
         myrimatch = int(searchsetting.myrimatch_profile)
+        sage = int(searchsetting.sage_profile)
     else:
         xtandem = int(searchsetting.xtandem_proteome)
         msgf = int(searchsetting.msgf_proteome)
@@ -202,6 +205,7 @@ def run_searchgui(queue_id):
         omssa = int(searchsetting.omssa_proteome)
         metamorpheus = int(searchsetting.metamorpheus_proteome)
         myrimatch = int(searchsetting.myrimatch_proteome)
+        sage = int(searchsetting.sage_proteome)
     
     # this is a workaround for myrimatch
     if myrimatch == 1:
@@ -212,7 +216,7 @@ def run_searchgui(queue_id):
     ms_amanda = 0
     tide = 0
     
-    if (xtandem == 0) and (msgf == 0) and (comet == 0) and (omssa == 0) and (metamorpheus == 0) and (myrimatch == 0):
+    if (xtandem == 0) and (msgf == 0) and (comet == 0) and (omssa == 0) and (metamorpheus == 0) and (myrimatch == 0) and (sage == 0):
         write_debug("No search engines are selected. Make sure at least one search engine is selected for both profile and proteome steps.", job, project)
         return False
         
@@ -231,6 +235,7 @@ def run_searchgui(queue_id):
                             "-meta_morpheus", "%s" % metamorpheus,
                             "-myrimatch", "%s" % myrimatch,
                             "-ms_amanda", "%s" % ms_amanda,
+                            "-sage", "%s" % sage,
                             "-tide", "%s" % tide,
                             "-output_option", "0",
                             "-output_data", "1",
@@ -301,7 +306,15 @@ def run_searchgui(queue_id):
             write_debug("Missing MetaMorpheus output from run_searchgui.", 
                 job, project)
             return False
-    
+    if (sage == 1):
+        if not os.path.exists(
+            os.path.join(settings.data_folder, project, "out", filename,
+            type, "temp", "%s.sage.tsv.gz" % filename)
+        ):
+            write_debug("Missing Sage output from run_searchgui.",
+                job, project)
+            return False
+            
     if os.path.exists(os.path.join(settings.data_folder, project, "out", filename, type, "temp")):
         shutil.rmtree(os.path.join(settings.data_folder, project, "out", filename, type, "temp"))
     
