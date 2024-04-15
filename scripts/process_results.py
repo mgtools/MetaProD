@@ -244,22 +244,22 @@ def process_results(queue_id, fasta_type):
     
     return True
     
-def calculate_nsaf(project, type):
+def calculate_nsaf(project, fasta_type):
     print("Updating NSAF values for %s %s" % (project, 
                                                  fasta_type))
     
-    if type == "profile":
+    if fasta_type == "profile":
         status = Queue.Status.FINISHED_PROF
     else:
         status = Queue.Status.FINISHED_PROT
         
     queryq = (
-        Queue.objects.filter(project__name=project, 
-                             status__gte=status)
+        Queue.objects.filter(project__name=project)
+                     .filter(status=status)
                      .exclude(error__gte=(1 + settings.max_retries))
                      .exclude(skip=True)
     )
-    
+
     # now that safs are done, need to calculate nsaf
     for entryq in queryq:
         # here we select collect the sum of all the saf values

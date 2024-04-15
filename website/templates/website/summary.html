@@ -30,7 +30,7 @@
 </div>
 <h4>Summary Information Per File</h4>
 <hr>
-{% if fasta_type == custom %}
+{% if fasta_type == 'custom' %}
 <h5>Counts for Custom</h5>
 <div class="table-container">
 <table class="table table-hover">
@@ -60,7 +60,7 @@
 </tbody>
 </table>
 </div>
-{% elif fasta_type != custom %}
+{% elif fasta_type != 'custom' %}
 <h5>Counts for Profile</h5>
 <div class="table-container">
 <table class="table table-hover">

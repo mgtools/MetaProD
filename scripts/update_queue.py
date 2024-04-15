@@ -123,6 +123,10 @@ def generate_file_queue(project, jobs):
     # if this is true, everything is 7 or higher but not 13 or higher
     elif not Queue.objects.filter(project__name=project, skip=False).exclude(status=Queue.Status.FINISHED_PROF).exists():
         print("All files have finished the profile step.")
+        if searchsetting.custom_fasta == True:
+            return
+        elif searchsetting.perform_second_step == False:
+            return
         queue = (Queue.objects.filter(project__name=project))
         for c in queue:
             if c.skip is True:
