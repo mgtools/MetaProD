@@ -281,7 +281,8 @@ def calculate_nsaf(project, fasta_type):
         for entry in query:
             nsaf = Decimal(entry.saf / saf_sum)
             entry.nsaf = nsaf
-            entry.save()
+            #entry.save()
+        Protein.objects.bulk_update(query, ['nsaf'], batch_size=1000)
             
     print("Finished updating NSAF values for %s %s" % (project, fasta_type))
 
