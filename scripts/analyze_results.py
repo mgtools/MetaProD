@@ -156,6 +156,7 @@ def analyze_results(project):
         DiffProtein.objects.bulk_create(diffprotein_list, 5000)
 
     def run_deqms_mp(phenotype):
+        # df.prot2 = read.table('Z:/data/colon_projects/co1/results/co1_proteins_final.tsv', sep="\t", quote="", header=TRUE)
         print("Calculating differentially expressed proteins for %s." % phenotype)
         
         query = (Tag.objects.filter(project=project)
@@ -165,9 +166,9 @@ def analyze_results(project):
             print("There must be at least 1 control tag.")
             return
             
-        count_t = (Queue.objects.filter(project=project)
-                                .filter(tag__name=phenotype)
-                                .count())
+        count_t = (LabelChoice.objects.filter(multiplexlabel__project__name=project)
+                                      .filter(tag__name=phenotype)
+                                      .count())
         if count_t == 0:
             print("There are no samples with the %s phenotype. Skipping." % phenotype)
             return
@@ -175,14 +176,12 @@ def analyze_results(project):
         ro.r('TMT_columns2_control <- data.frame(matrix(ncol=0, nrow=nrow(df.prot2)))')
         ro.r('count_columns2_control <- data.frame(matrix(ncol=0, nrow=nrow(df.prot2)))')
         for q in query:
-            ro.r('TMT_columns2_control = cbind(TMT_columns2_control, df.prot2[, grep("Peak.Area.*.%s$", colnames(df.prot2))])' % q['name'])
-            ro.r('count_columns2_control = cbind(count_columns2_control, df.prot2[, grep("psm.*.%s$", colnames(df.prot2), ignore.case=TRUE)])' % q['name'])
-        ro.r('TMT_columns2_treatment = df.prot2[, grep("Peak.Area.*.%s$", colnames(df.prot2))]' % phenotype)
+            ro.r('TMT_columns2_control = cbind(TMT_columns2_control, df.prot2[, grep(".ratio.%s$", colnames(df.prot2))])' % q['name'])
+        ro.r('TMT_columns2_treatment = df.prot2[, grep(".ratio.%s$", colnames(df.prot2))]' % phenotype)
         ro.r('dat2 = cbind(TMT_columns2_control, TMT_columns2_treatment)')
+        #####
         ro.r('rownames(dat2) = df.prot2$accession')
-        ro.r('count_columns2_treatment = df.prot2[, grep("psm.*.%s$", colnames(df.prot2), ignore.case=TRUE)]' % phenotype)
-        ro.r('count_columns2 = cbind(count_columns2_control, count_columns2_treatment)')
-        ro.r('psm.count.table2 = data.frame(count = rowMins(as.matrix(count_columns2)), row.names =  df.prot2$accession)')
+        ro.r('psm.count.table2 = data.frame(count = df.prot2$psm, row.names =  df.prot2$accession)')
         # normalize
         ro.r('dat2 = equalMedianNormalization(dat2)')
         # drop na although with pemm, this shouldn't happen
@@ -241,14 +240,14 @@ def analyze_results(project):
     if searchsetting.multiplex == True:
         query = (Tag.objects.filter(project=project)
                             .filter(t_type='Reference')
-                            .values('phenotype'))
+                            .values('name'))
         # we don't want the reference columns in analysis but store them for later
         ro.r('reference <- data.frame(matrix(ncol=0, nrow=nrow(df.pep)))')
         for q in query:
-            ro.r('reference = cbind(reference, df.pep[, grep("%s", colnames(df.pep))])' % q['phenotype'])
+            ro.r('reference = cbind(reference, df.pep[, grep("%s", colnames(df.pep))])' % q['name'])
             # we only want the log of the Reference ratio columns and not PSM
             ro.r('reference[grep("ratio.%s", colnames(reference))] = log2(reference[grep("ratio.%s", colnames(reference))])')
-            ro.r('df.pep = df.pep[, -grep("%s", colnames(df.pep))]' % q['phenotype'])
+            ro.r('df.pep = df.pep[, -grep("%s", colnames(df.pep))]' % q['name'])
         # find the ratio columns    
         ro.r('ratio_columns = grep(".ratio.", colnames(df.pep), ignore.case=TRUE)')
         ro.r('psm_columns = grep(".psm.", colnames(df.pep), ignore.case=TRUE)')
@@ -426,14 +425,14 @@ def load_ratios(project):
 
     query = (LabelChoice.objects.filter(
                 multiplexlabel__project__name=project,
-            ).values('multiplexlabel__sample__name', 'label__name', 'identifier', 'phenotype'))
+            ).values('multiplexlabel__sample__name', 'label__name', 'identifier', 'tag__t_type', 'tag__name'))
     labelchoices = pd.DataFrame(list(query))
     columns = [x for x in psm_ratio_list.columns[8:]]
     # drop anything PSMs missing all ratios
     psm_ratio_list.dropna(subset=columns, inplace=True, how='all')
     # also drop any PSMs missing the reference because it can't be normalized
     # have to lookup the reference for a given sample
-    references = list(labelchoices[labelchoices['phenotype'] == 'Reference'][['multiplexlabel__sample__name', 'label__name']].index)
+    references = list(labelchoices[labelchoices['tag__t_type'] == 'Reference'][['multiplexlabel__sample__name', 'label__name']].index)
     psm_ratio_list.drop(index=references, inplace=True)
 
     for col in columns:
@@ -482,8 +481,8 @@ def peptides_to_phenotypes(peptides_n, columns, labelchoices):
             mapping = labelchoices[(labelchoices['multiplexlabel__sample__name'] == sample)
                                     & (labelchoices['label__name'] == col)]
 
-            phenotype_t = "%s ratio %s" % (mapping.iloc[0]['identifier'], mapping.iloc[0]['phenotype'])
-            phenotype_p = "%s psm %s" % (mapping.iloc[0]['identifier'], mapping.iloc[0]['phenotype'])
+            phenotype_t = "%s ratio %s" % (mapping.iloc[0]['identifier'], mapping.iloc[0]['tag__name'])
+            phenotype_p = "%s psm %s" % (mapping.iloc[0]['identifier'], mapping.iloc[0]['tag__name'])
             new_series = peptides_n[(peptides_n['sample'] == sample)][col]
             new_series.name = phenotype_t
             new_series_p = peptides_n[(peptides_n['sample'] == sample)]['psm']
