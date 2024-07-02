@@ -103,7 +103,7 @@ def generate_fasta(project, type):
             elif searchsetting.profile_type == SearchSetting.ProfileType.SAMPLE:
                 # haven't made it for the sample yet
                 if sample not in samples:
-                    print("Sample based profiling. Generating proteome FASTA for %s." % (sample))
+                    print("Sample based profiling. Generating proteome FASTA for %s (have_sample=%s)." % (sample, have_sample))
                     generate_proteome_fasta(project, entry.filename, sample, have_sample)
                     samples[sample] = entry.filename
                 else:
@@ -186,44 +186,44 @@ def generate_proteome_fasta(project, filename, sample, have_sample):
     if searchsetting.profile_type == SearchSetting.ProfileType.PROJECT:
         query_t = (
             Protein.objects
-            .filter(type="profile")
-            .filter(queue__status__gte=Queue.Status.FINISHED_PROF)
-            .filter(queue__project__name=project)
-            .exclude(queue__skip=True)
-            .exclude(fp__ppid__proteome='0')
-            .exclude(fp__ppid__proteome='UP000005640')
-            .aggregate(Sum('nsaf'))
+                .filter(type="profile")
+                .filter(queue__status=Queue.Status.FINISHED_PROF)
+                .filter(queue__project__name=project)
+                .exclude(queue__skip=True)
+                .exclude(fp__ppid__proteome='0')
+                .exclude(fp__ppid__proteome='UP000005640')
+                .aggregate(Sum('nsaf'))
         )
         total = query_t['nsaf__sum']
         if not total is None:
             total = float(total) * float(searchsetting.profile_threshold / 100)
             query = (
                 Protein.objects
-                .filter(type="profile")
-                .filter(queue__status__gte=Queue.Status.FINISHED_PROF)
-                .filter(queue__project__name=project)
-                .exclude(queue__skip=True)
-                .exclude(fp__ppid__proteome='0')
-                .exclude(fp__ppid__proteome='UP000005640')
-                .values('fp__ppid__proteome')
-                .annotate(sum=Sum('nsaf'))
-                .order_by('-sum')
+                    .filter(type="profile")
+                    .filter(queue__status=Queue.Status.FINISHED_PROF)
+                    .filter(queue__project__name=project)
+                    .exclude(queue__skip=True)
+                    .exclude(fp__ppid__proteome='0')
+                    .exclude(fp__ppid__proteome='UP000005640')
+                    .values('fp__ppid__proteome')
+                    .annotate(sum=Sum('nsaf'))
+                    .order_by('-sum')
             )
 
     # not pooled, so a filter also needs to specify the filename
     elif searchsetting.profile_type == SearchSetting.ProfileType.SAMPLE and have_sample == 1:
         query_t = (
             Protein.objects
-            .filter(type="profile")
-            .filter(queue__project__name=project)
-            .filter(queue__sample__name=sample)
-            .filter(queue__sample__project=project)
-            .filter(queue__status__gte=Queue.Status.FINISHED_PROF)
-            .exclude(queue__error__gte=2)
-            .exclude(queue__skip=True)
-            .exclude(fp__ppid__proteome='0')
-            .exclude(fp__ppid__proteome='UP000005640')
-            .aggregate(Sum('nsaf'))
+                .filter(type="profile")
+                .filter(queue__project__name=project)
+                .filter(queue__sample__name=sample)
+                .filter(queue__sample__project=project)
+                .filter(queue__status=Queue.Status.FINISHED_PROF)
+                .exclude(queue__error__gte=2)
+                .exclude(queue__skip=True)
+                .exclude(fp__ppid__proteome='0')
+                .exclude(fp__ppid__proteome='UP000005640')
+                .aggregate(Sum('nsaf'))
         )
         total = query_t['nsaf__sum']
         if not total is None:
@@ -231,18 +231,18 @@ def generate_proteome_fasta(project, filename, sample, have_sample):
     
             query = (
                 Protein.objects
-                .filter(type="profile")
-                .filter(queue__project__name=project)
-                .filter(queue__sample__name=sample)
-                .filter(queue__sample__project=project)
-                .filter(queue__status__gte=Queue.Status.FINISHED_PROF)
-                .exclude(queue__error__gte=2)
-                .exclude(queue__skip=True)
-                .exclude(fp__ppid__proteome='0')
-                .exclude(fp__ppid__proteome='UP000005640')
-                .values('fp__ppid__proteome')
-                .annotate(sum=Sum('nsaf'))
-                .order_by('-sum')
+                    .filter(type="profile")
+                    .filter(queue__project__name=project)
+                    .filter(queue__sample__name=sample)
+                    .filter(queue__sample__project=project)
+                    .filter(queue__status=Queue.Status.FINISHED_PROF)
+                    .exclude(queue__error__gte=2)
+                    .exclude(queue__skip=True)
+                    .exclude(fp__ppid__proteome='0')
+                    .exclude(fp__ppid__proteome='UP000005640')
+                    .values('fp__ppid__proteome')
+                    .annotate(sum=Sum('nsaf'))
+                    .order_by('-sum')
             )
 
     # either we are doing filename profiling or the file didn't have a sample 
@@ -250,15 +250,15 @@ def generate_proteome_fasta(project, filename, sample, have_sample):
     else:
         query_t = (
             Protein.objects
-            .filter(type="profile")
-            .filter(queue__status__gte=Queue.Status.FINISHED_PROF)
-            .filter(queue__project__name=project)
-            .filter(queue__filename=filename)
-            .exclude(queue__error__gte=2)
-            .exclude(queue__skip=True)
-            .exclude(fp__ppid__proteome='0')
-            .exclude(fp__ppid__proteome='UP000005640')
-            .aggregate(Sum('nsaf'))
+                .filter(type="profile")
+                .filter(queue__status=Queue.Status.FINISHED_PROF)
+                .filter(queue__project__name=project)
+                .filter(queue__filename=filename)
+                .exclude(queue__error__gte=2)
+                .exclude(queue__skip=True)
+                .exclude(fp__ppid__proteome='0')
+                .exclude(fp__ppid__proteome='UP000005640')
+                .aggregate(Sum('nsaf'))
         )
         total = query_t['nsaf__sum']
         if not total is None:
@@ -266,17 +266,17 @@ def generate_proteome_fasta(project, filename, sample, have_sample):
 
             query = (
                 Protein.objects
-                .filter(type="profile")
-                .filter(queue__status__gte=Queue.Status.FINISHED_PROF)
-                .filter(queue__project__name=project)
-                .filter(queue__filename=filename)
-                .exclude(queue__error__gte=2)
-                .exclude(queue__skip=True)
-                .exclude(fp__ppid__proteome='0')
-                .exclude(fp__ppid__proteome='UP000005640')
-                .values('fp__ppid__proteome')
-                .annotate(sum=Sum('nsaf'))
-                .order_by('-sum')
+                    .filter(type="profile")
+                    .filter(queue__status=Queue.Status.FINISHED_PROF)
+                    .filter(queue__project__name=project)
+                    .filter(queue__filename=filename)
+                    .exclude(queue__error__gte=2)
+                    .exclude(queue__skip=True)
+                    .exclude(fp__ppid__proteome='0')
+                    .exclude(fp__ppid__proteome='UP000005640')
+                    .values('fp__ppid__proteome')
+                    .annotate(sum=Sum('nsaf'))
+                    .order_by('-sum')
             )
 
     if not total is None:

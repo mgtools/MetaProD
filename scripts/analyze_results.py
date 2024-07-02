@@ -177,11 +177,14 @@ def analyze_results(project):
         ro.r('count_columns2_control <- data.frame(matrix(ncol=0, nrow=nrow(df.prot2)))')
         for q in query:
             ro.r('TMT_columns2_control = cbind(TMT_columns2_control, df.prot2[, grep(".ratio.%s$", colnames(df.prot2))])' % q['name'])
+            ro.r('count_columns2_control = cbind(count_columns2_control, df.prot2[, grep("psm.*.%s$", colnames(df.prot2), ignore.case=TRUE)])' % q['name'])
         ro.r('TMT_columns2_treatment = df.prot2[, grep(".ratio.%s$", colnames(df.prot2))]' % phenotype)
         ro.r('dat2 = cbind(TMT_columns2_control, TMT_columns2_treatment)')
-        #####
         ro.r('rownames(dat2) = df.prot2$accession')
-        ro.r('psm.count.table2 = data.frame(count = df.prot2$psm, row.names =  df.prot2$accession)')
+        ro.r('count_columns2_treatment = df.prot2[, grep("psm.*.%s$", colnames(df.prot2), ignore.case=TRUE)]' % phenotype)
+        ro.r('count_columns2 = cbind(count_columns2_control, count_columns2_treatment)')
+        ro.r('psm.count.table2 = data.frame(count = rowMins(as.matrix(count_columns2)), row.names =  df.prot2$accession)')        
+        #ro.r('psm.count.table2 = data.frame(count = df.prot2$psm, row.names =  df.prot2$accession)')
         # normalize
         ro.r('dat2 = equalMedianNormalization(dat2)')
         # drop na although with pemm, this shouldn't happen
@@ -386,39 +389,45 @@ def load_pemm():
     matrixstats = importr('matrixStats')
 
 def load_ratios(project):
+    print("Loading ratios for multiplexed data.")
     query = (PsmRatio.objects.filter(psm__queue__project__name=project)
                              .filter(psm__type="proteome")
                              .exclude(psm__peptide__protein__fp__ppid='0')
                              .exclude(psm__queue__skip=True)
                              .exclude(psm__queue__error__gte=(1 + settings.max_retries))
                              .values('psm_id', 'psm__peptide__id', 'ratio', 'label',
+                                     'psm__mod_sequence',                             
                                      'psm__peptide__protein__fp__accession',
-                                     'psm__peptide__protein__fp__ppid',
-                                     'psm__peptide__protein__fp__description',
                                      'psm__peptide__protein__fp__gene',
-                                     'psm__mod_sequence',
+                                     'psm__peptide__protein__fp__description',                                     
+                                     'psm__peptide__protein__fp__ppid',
+                                     'psm__peptide__protein__fp__ppid__organism',
                                      'psm__queue__sample__name'))
 
     # convert to dataframe
     psm_ratio_list = pd.DataFrame(list(query))
 
+    del query
+    
     psm_ratio_list = psm_ratio_list.rename(columns={'psm_id': 'psm_id',
                                                     'psm__peptide__id': 'peptide_id',
+                                                    'psm__mod_sequence': 'sequence',                                                    
                                                     'psm__peptide__protein__fp__accession': 'accession',
-                                                    'psm__peptide__protein__fp__ppid': 'ppid',
-                                                    'psm__peptide__protein__fp__gene': 'gene',
-                                                    'psm__mod_sequence': 'sequence',
+                                                    'psm__peptide__protein__fp__gene': 'gene',                                                    
                                                     'psm__peptide__protein__fp__description': 'description',
+                                                    'psm__peptide__protein__fp__ppid': 'ppid',                                                    
+                                                    'psm__peptide__protein__fp__ppid__organism': 'organism',
                                                     'psm__queue__sample__name': 'sample'})
                     
     # turn ratio/label columns into separate columns per label
     psm_ratio_list = psm_ratio_list.pivot(index=['psm_id', 
                                                  'peptide_id',
+                                                 'sequence',                                                 
                                                  'accession',
-                                                 'ppid',
                                                  'gene',
-                                                 'sequence',
-                                                 'description',
+                                                 'description',                                                 
+                                                 'ppid',
+                                                 'organism',
                                                  'sample'], 
                                             columns='label', values='ratio')
     psm_ratio_list = psm_ratio_list.reset_index()
@@ -427,7 +436,8 @@ def load_ratios(project):
                 multiplexlabel__project__name=project,
             ).values('multiplexlabel__sample__name', 'label__name', 'identifier', 'tag__t_type', 'tag__name'))
     labelchoices = pd.DataFrame(list(query))
-    columns = [x for x in psm_ratio_list.columns[8:]]
+    del query
+    columns = [x for x in psm_ratio_list.columns[9:]]
     # drop anything PSMs missing all ratios
     psm_ratio_list.dropna(subset=columns, inplace=True, how='all')
     # also drop any PSMs missing the reference because it can't be normalized
@@ -441,14 +451,16 @@ def load_ratios(project):
     return(psm_ratio_list, columns, labelchoices)
     
 def generate_initial_peptides(psm_ratio_list, columns):
+    print("Generating initial peptides.")
     # find the median of the psms for the raw peptide ratio
     peptides = psm_ratio_list.groupby(['peptide_id',
                                        'sample',
                                        'sequence',
                                        'accession',
                                        'gene',
+                                       'description',                                       
                                        'ppid',
-                                       'description',
+                                       'organism',
                                       ])
     # median of PSM is peptide
     peptides_r = peptides[columns].median()
@@ -466,12 +478,15 @@ def generate_initial_peptides(psm_ratio_list, columns):
                                       'gene',
                                       'description',
                                       'ppid',
+                                      'organism',
                                       'psm',
                                     ]], peptides_n, left_index=True, right_index=True)
                                     
     return(peptides_n)
     
 def peptides_to_phenotypes(peptides_n, columns, labelchoices):
+    print("Converting peptides into phenotypes.")
+    print("1")
     sample_list = list(peptides_n['sample'].unique())
     # map peptides to phenotypes
     series_dict = {}
@@ -495,7 +510,7 @@ def peptides_to_phenotypes(peptides_n, columns, labelchoices):
                 series_dict_p[phenotype_p] = new_series_p
             else:
                 series_dict_p[phenotype_p] = pd.concat(objs=[series_dict_p[phenotype_p], new_series_p])
-
+    print("2")
     # in some cases, the phenotype will be the same so merge the numbers
     for s in series_dict:
         series_dict[s] = series_dict[s].groupby(series_dict[s].index).median()
@@ -504,20 +519,25 @@ def peptides_to_phenotypes(peptides_n, columns, labelchoices):
         series_dict_p[s] = series_dict_p[s].groupby(series_dict_p[s].index).median()
     
     series_df = pd.DataFrame(series_dict)
+    del series_dict
     series_df_p = pd.DataFrame(series_dict_p)
-    
+    del series_dict_p
+    print("3")    
     peptide_samples = pd.merge(peptides_n, series_df, left_index=True, right_index=True)
+    del series_df
     peptide_samples = pd.merge(peptide_samples, series_df_p, left_index=True, right_index=True)
+    del series_df_p
     peptide_samples = peptide_samples.reset_index()
-
+    print("4")
     # 'ColonRef Not Reported ratio Reference'
     peptide_samples = peptide_samples.drop(columns=columns)
-    data_cols = list(sorted(peptide_samples.columns[9:]))
+    data_cols = list(sorted(peptide_samples.columns[10:]))
     peptide_samples = peptide_samples.groupby(['sequence',
                                                'accession',
                                                'gene',
                                                'description',
-                                               'ppid']).agg({'psm': 'sum', **{e: 'median' for e in data_cols}})
+                                               'ppid',
+                                               'organism']).agg({'psm': 'sum', **{e: 'median' for e in data_cols}})
     peptide_samples = peptide_samples.reset_index()
  
     return(peptide_samples)
