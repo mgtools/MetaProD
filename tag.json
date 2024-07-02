@@ -1,0 +1,29 @@
+[
+{
+  "model": "projects.tag",
+  "fields": {
+    "name": "Cancer",
+    "project": "example2",
+    "description": null,
+    "t_type": "Treatment"
+  }
+},
+{
+  "model": "projects.tag",
+  "fields": {
+    "name": "Normal",
+    "project": "example2",
+    "description": null,
+    "t_type": "Control"
+  }
+},
+{
+  "model": "projects.tag",
+  "fields": {
+    "name": "Reference",
+    "project": "example2",
+    "description": null,
+    "t_type": "Reference"
+  }
+}
+]
