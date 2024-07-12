@@ -86,7 +86,7 @@ def read_results(queue_id, fasta_type):
     data_psm  = pd.read_csv(data_file_psm, header=0, sep='\t', low_memory=False)
     # peak area
     if searchsetting.mzmine_run_mzmine == True:
-        data_psm_pa = pd.read_csv("%s%s%s_mzexport.csv" % (os.path.join(settings.data_folder, project, "out", filename, type), os.sep, filename), sep=',', low_memory=False)
+        data_psm_pa = pd.read_csv("%s%s%s_mzexport.csv" % (os.path.join(settings.data_folder, project, "out", filename, fasta_type), os.sep, filename), sep=',', low_memory=False)
     
     # no psms, so we should just skip the file as a way to give a warning
     if data_psm.shape[0] <= 1:
