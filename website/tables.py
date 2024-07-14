@@ -228,19 +228,19 @@ class FileSummaryTable(Table):
         orderable=True, 
         verbose_name='Proteins', 
         template_code=
-            '''<a href="{% url 'protein_list' %}?project={{ record.queue.project.name }}&file={{ record.queue.id }}&proteome={{ record.ppid.proteome }}&type={{ record.type|capfirst }}">{{ record.val_num_protein }}</a>'''
+            '''<a href="{% url 'protein_list' %}?project={{ record.queue.project.name }}&file={{ record.queue.id }}&proteome={{ record.ppid.proteome }}&type={{ record.type }}">{{ record.val_num_protein }}</a>'''
     )
     val_num_peptide = TemplateColumn(
         orderable=True, 
         verbose_name='Peptides', 
         template_code=
-            '''<a href="{% url 'peptide_list' %}?project={{ record.queue.project.name }}&file={{ record.queue.id }}&proteome={{ record.ppid.proteome }}&type={{ record.type|capfirst }}">{{ record.val_num_peptide }}</a>'''
+            '''<a href="{% url 'peptide_list' %}?project={{ record.queue.project.name }}&file={{ record.queue.id }}&proteome={{ record.ppid.proteome }}&type={{ record.type }}">{{ record.val_num_peptide }}</a>'''
     )
     val_num_psm = TemplateColumn(
         orderable=True, 
         verbose_name='PSMs', 
         template_code=
-            '''<a href="{% url 'psm_list' %}?project={{ record.queue.project.name }}&file={{ record.queue.id }}&proteome={{ record.ppid.proteome }}&type={{ record.type|capfirst }}">{{ record.val_num_psm }}</a>'''
+            '''<a href="{% url 'psm_list' %}?project={{ record.queue.project.name }}&file={{ record.queue.id }}&proteome={{ record.ppid.proteome }}&type={{ record.type }}">{{ record.val_num_psm }}</a>'''
     )
     nsaf = Column(verbose_name='NSAF') 
     class Meta:
