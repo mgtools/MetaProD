@@ -100,6 +100,11 @@ class Psm(models.Model):
 class Proteome(models.Model):
     proteome = models.CharField(max_length=20, primary_key=True)
     organism = models.TextField()
+    # number of unique proteins in proteome
+    full_size = models.IntegerField(default=0)
+    # number in the profile.fastaprotein
+    # note that some proteomes will actually have 0
+    profile_size = models.IntegerField(default=0)
 
 # table of proteins loaded from the FASTA file
 class FastaProtein(models.Model):
@@ -143,7 +148,7 @@ class SpeciesSummary(models.Model):
     nsaf = models.DecimalField(max_digits=15, decimal_places=6)
     peak_area = models.DecimalField(null=True, max_digits=19, decimal_places=3)
     peak_area_psm = models.IntegerField(null=True)
-    
+
     def natural_key(self):
         return(self.project, self.ppid, self.type)
         
@@ -161,7 +166,7 @@ class SpeciesFileSummary(models.Model):
     nsaf = models.DecimalField(max_digits=15, decimal_places=6)
     peak_area = models.DecimalField(null=True, max_digits=19, decimal_places=3)
     peak_area_psm = models.IntegerField(null=True)
-    
+ 
     def natural_key(self):
         return(self.type, self.ppid) + self.queue.natural_key()
 

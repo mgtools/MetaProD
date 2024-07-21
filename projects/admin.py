@@ -223,7 +223,8 @@ class SearchSettingAdmin(admin.ModelAdmin):
                 ('use_crap'), ('use_human', 'human_fasta'),
                 ('custom_fasta'),
                 ('perform_second_step'),
-                ('profile_type', 'profile_threshold', 'profile_method'),
+                ('profile_type', 'profile_method'),
+                ('profile_threshold', 'profile_exclude_below', 'profile_include_above'),
                 ('multiplex'), ('run_deqms'), ('mzmine_run_mzmine'),
                 ('imput_threshold')
             ),

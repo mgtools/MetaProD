@@ -134,13 +134,19 @@ def generate_file_queue(project, jobs):
                 
         calculate_nsaf(project, "profile")
         calculate_species_summary(project, "profile")
-        generate_fasta(project, "proteome")
         
         for q in queue:
             if q.skip == True:
                 continue
             write_debug("Calculating species file summary for %s." % (q.filename), q.job, q.project.name)
             calculate_species_file_summary(q.id, "profile")
+            q.save()
+            
+        generate_fasta(project, "proteome")
+        
+        for q in queue:
+            if q.skip == True:
+                continue
             q.error = 0
             q.status = Queue.Status.SEARCHGUI_PROT
             q.save()

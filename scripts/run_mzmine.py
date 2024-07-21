@@ -93,6 +93,7 @@ def run_mzmine(queue_id):
     # now generate the csv to import into mzmine
     # results aren't in the database yet so we need to use the ps output
     ps_output = pd.read_csv(r"%s%sps_%s_Default_PSM_Report.txt" % (os.path.join(settings.data_folder, project, "out", filename, type), os.sep, project), sep='\t')
+    ps_output = ps_output[ps_output['Validation']=='Confident']
     mz_output = pd.DataFrame()
     mz_output['mz'] = round(ps_output['m/z'], 4)
     mz_output['rt'] = ps_output['RT']

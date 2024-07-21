@@ -15,7 +15,7 @@ from django.db.models import Sum
 from django.core.exceptions import ObjectDoesNotExist
 
 from projects.models import Queue, SearchSetting
-from results.models import Protein
+from results.models import Protein, SpeciesSummary, SpeciesFileSummary
 from .run_command import run_command, settings
 from .load_proteomes import load_proteomes
 
@@ -180,20 +180,42 @@ def generate_proteome_fasta(project, filename, sample, have_sample):
     
     print("Calculating species to include in FASTA.")
 
+    banned_species = []
+                                     
     proteomes = []
     count = 0
     current_psm = 0
+
     if searchsetting.profile_type == SearchSetting.ProfileType.PROJECT:
+        query_f = (Queue.objects.filter(project__name=project)
+                                .exclude(skip=True)
+                                .exclude(error__gte=2)
+                                .filter(status=Queue.Status.FINISHED_PROF))
+        num_files = len(query_f)
+        
+        query_s = (SpeciesSummary.objects.filter(project_id=project)
+                                         .filter(type="profile")
+                                         .exclude(ppid_id=0)
+                                         .exclude(ppid_id='UP000005640')
+                                         .filter(val_num_protein__lte=(searchsetting.profile_exclude_below*num_files+1))
+                                         .values('ppid_id'))
+                                         
+        for entry in query_s:
+            banned_species.append(entry['ppid_id'])
+                                         
         query_t = (
             Protein.objects
                 .filter(type="profile")
                 .filter(queue__status=Queue.Status.FINISHED_PROF)
                 .filter(queue__project__name=project)
                 .exclude(queue__skip=True)
+                .exclude(queue__error__gte=2)
                 .exclude(fp__ppid__proteome='0')
                 .exclude(fp__ppid__proteome='UP000005640')
+                .exclude(fp__ppid__proteome__in=banned_species)
                 .aggregate(Sum('nsaf'))
         )
+                                      
         total = query_t['nsaf__sum']
         if not total is None:
             total = float(total) * float(searchsetting.profile_threshold / 100)
@@ -203,15 +225,40 @@ def generate_proteome_fasta(project, filename, sample, have_sample):
                     .filter(queue__status=Queue.Status.FINISHED_PROF)
                     .filter(queue__project__name=project)
                     .exclude(queue__skip=True)
+                    .exclude(queue__error__gte=2)
                     .exclude(fp__ppid__proteome='0')
                     .exclude(fp__ppid__proteome='UP000005640')
+                    .exclude(fp__ppid__proteome__in=banned_species)
                     .values('fp__ppid__proteome')
                     .annotate(sum=Sum('nsaf'))
                     .order_by('-sum')
             )
 
     # not pooled, so a filter also needs to specify the filename
-    elif searchsetting.profile_type == SearchSetting.ProfileType.SAMPLE and have_sample == 1:
+    elif searchsetting.profile_type == SearchSetting.ProfileType.SAMPLE and have_sample == 1: 
+        query_f = (Queue.objects.filter(project__name=project)
+                                .exclude(skip=True)
+                                .exclude(error__gte=2)
+                                .filter(sample__name=sample)
+                                .filter(sample__project=project)
+                                .filter(status=Queue.Status.FINISHED_PROF))    
+        num_files = len(query_f)
+        
+        query_s = (SpeciesFileSummary.objects.filter(queue__project__name=project)
+                                             .filter(type="profile")
+                                             .filter(queue__sample__name=sample)
+                                             .filter(queue__sample__project=project)
+                                             .filter(queue__status=Queue.Status.FINISHED_PROF)
+                                             .exclude(queue__error__gte=2)
+                                             .exclude(queue__skip=True)
+                                             .exclude(ppid_id=0)
+                                             .exclude(ppid_id='UP000005640')
+                                             .filter(val_num_protein__lte=(searchsetting.profile_exclude_below*num_files+1))
+                                             .values('ppid_id'))
+                                         
+        for entry in query_s:
+            banned_species.append(entry['ppid_id'])
+            
         query_t = (
             Protein.objects
                 .filter(type="profile")
@@ -223,8 +270,10 @@ def generate_proteome_fasta(project, filename, sample, have_sample):
                 .exclude(queue__skip=True)
                 .exclude(fp__ppid__proteome='0')
                 .exclude(fp__ppid__proteome='UP000005640')
+                .exclude(fp__ppid__proteome__in=banned_species)
                 .aggregate(Sum('nsaf'))
         )
+                                 
         total = query_t['nsaf__sum']
         if not total is None:
             total = float(total) * float(searchsetting.profile_threshold / 100)
@@ -240,6 +289,7 @@ def generate_proteome_fasta(project, filename, sample, have_sample):
                     .exclude(queue__skip=True)
                     .exclude(fp__ppid__proteome='0')
                     .exclude(fp__ppid__proteome='UP000005640')
+                    .exclude(fp__ppid__proteome__in=banned_species)
                     .values('fp__ppid__proteome')
                     .annotate(sum=Sum('nsaf'))
                     .order_by('-sum')
@@ -248,6 +298,27 @@ def generate_proteome_fasta(project, filename, sample, have_sample):
     # either we are doing filename profiling or the file didn't have a sample 
     #  set so the sample is effectively the filename
     else:
+        query_f = (Queue.objects.filter(project_id=project)
+                                .exclude(skip=True)
+                                .exclude(error__gte=2)
+                                .filter(filename=filename)
+                                .filter(status=Queue.Status.FINISHED_PROF))
+        num_files = len(query_f)
+        
+        query_s = (SpeciesFileSummary.objects.filter(queue__project__name=project)
+                                             .filter(type="profile")
+                                             .filter(queue__filename=filename)
+                                             .filter(queue__status=Queue.Status.FINISHED_PROF)
+                                             .exclude(queue__skip=True)
+                                             .exclude(queue__error__gte=2)
+                                             .exclude(ppid_id=0)
+                                             .exclude(ppid_id='UP000005640')
+                                             .filter(val_num_protein__lte=(searchsetting.profile_exclude_below*num_files+1))
+                                             .values('ppid_id'))
+                                         
+        for entry in query_s:
+            banned_species.append(entry['ppid_id'])
+            
         query_t = (
             Protein.objects
                 .filter(type="profile")
@@ -258,8 +329,10 @@ def generate_proteome_fasta(project, filename, sample, have_sample):
                 .exclude(queue__skip=True)
                 .exclude(fp__ppid__proteome='0')
                 .exclude(fp__ppid__proteome='UP000005640')
+                .exclude(fp__ppid__proteome__in=banned_species)
                 .aggregate(Sum('nsaf'))
         )
+                                      
         total = query_t['nsaf__sum']
         if not total is None:
             total = float(total) * float(searchsetting.profile_threshold / 100)
@@ -274,19 +347,24 @@ def generate_proteome_fasta(project, filename, sample, have_sample):
                     .exclude(queue__skip=True)
                     .exclude(fp__ppid__proteome='0')
                     .exclude(fp__ppid__proteome='UP000005640')
+                    .exclude(fp__ppid__proteome__in=banned_species)
                     .values('fp__ppid__proteome')
                     .annotate(sum=Sum('nsaf'))
                     .order_by('-sum')
             )
-
+            
     if not total is None:
+        print("Profiling for %s files." % (num_files))
         print("%s%% of bacterial NSAF: %s" % (searchsetting.profile_threshold, total))
+        print("Including proteomes with at least %s proteins." % (searchsetting.profile_include_above*num_files))
+        print("Excluding proteomes with fewer than %s proteins." % (searchsetting.profile_exclude_below*num_files+1))
+        
         for entry in query:
             # running count is below the threshold, so we add it
             if count <= total:
                 proteomes.append(entry['fp__ppid__proteome'])
                 count += entry['sum']
-                print("Including %s: %s" % (entry['fp__ppid__proteome'], count))                
+                print("Including %s: NSAF (%s)." % (entry['fp__ppid__proteome'], count))                
                 current_psm = entry['sum']
             else:
                 if entry['sum'] == current_psm:
@@ -301,7 +379,49 @@ def generate_proteome_fasta(project, filename, sample, have_sample):
                 
             if entry['fp__ppid__proteome'] not in proteomes:
                 proteomes.append(entry['fp__ppid__proteome'])
-
+        
+        # so now we have to check again to look for species that weren't in
+        # the proteomes yet but that have proteins above the threshold
+        # the threshold should be based on number of files. so if it is set to 5
+        # then it gte than 5*number_of_files
+        if searchsetting.profile_type == SearchSetting.ProfileType.PROJECT:
+    
+            query_s = (SpeciesSummary.objects.filter(project_id=project)
+                                            .filter(type="profile")
+                                            .exclude(ppid_id=0)
+                                            .exclude(ppid_id='UP000005640')
+                                            .filter(val_num_protein__gte=(searchsetting.profile_include_above*num_files))
+                                            .values('ppid_id'))
+                                            
+        elif searchsetting.profile_type == SearchSetting.ProfileType.SAMPLE and have_sample == 1:
+            query_s = (SpeciesFileSummary.objects.filter(queue__project__name=project)
+                                                 .filter(type="profile")
+                                                 .filter(queue__sample__name=sample)
+                                                 .filter(queue__sample__project=project)
+                                                 .filter(queue__status=Queue.Status.FINISHED_PROF)
+                                                 .exclude(queue__error__gte=2)
+                                                 .exclude(queue__skip=True)
+                                                 .exclude(ppid_id=0)
+                                                 .exclude(ppid_id='UP000005640')
+                                                 .filter(val_num_protein__gte=(searchsetting.profile_include_above*num_files))
+                                                 .values('ppid_id'))        
+        
+        else:
+            query_s = (SpeciesFileSummary.objects.filter(queue__project__name=project)
+                                                 .filter(type="profile")
+                                                 .filter(queue__filename=filename)
+                                                 .filter(queue__status=Queue.Status.FINISHED_PROF)
+                                                 .exclude(queue__skip=True)
+                                                 .exclude(queue__error__gte=2)
+                                                 .exclude(ppid_id=0)
+                                                 .exclude(ppid_id='UP000005640')
+                                                 .filter(val_num_protein__gte=(searchsetting.profile_include_above*num_files))
+                                                 .values('ppid_id'))  
+        for entry in query_s:
+            if entry['ppid_id'] not in proteomes:
+                print("Including %s: (at least %s)." % (entry['ppid_id'], (searchsetting.profile_include_above*num_files)))
+                proteomes.append(entry['ppid_id'])
+                    
     fasta_file = "%s%s%s_%s_%s.fasta" % (os.path.join(settings.data_folder, project, "fasta", "proteome", filename), os.sep, project, filename, "proteome")
     fasta_file_concat = "%s%s%s_%s_%s_concatenated_target_decoy.fasta" % (os.path.join(settings.data_folder, project, "fasta", "proteome", filename), os.sep, project, filename, "proteome")
     
@@ -773,23 +893,32 @@ def filter_high_profile():
     seq_count = 0
     # ppid: name
     rows_list = []
-    proteomes = []
+    proteomes = {}
+    profile_proteomes = {}
     for record in SeqIO.parse("%s%sfull.fasta" % (os.path.join(settings.install_folder, "fasta"), os.sep), "fasta"):
         dict1 = {}
         p = re.compile("^(?P<start>(?P<db>[^\|]+)\|(?P<accession>[^\|]+)\|(?P<middle>.+)\s)(?P<OS>OS=.+)\s(?P<OX>OX=.+)\s(?P<UPId>UPId=[^\s]+)\s(?P<PPId>PPId=[^\s]+)$")
         m = p.search(record.description)
         if m:
-            if m.group('PPId') not in proteomes:
-                proteomes.append(m.group('PPId'))
+            if str(m.group('PPId')).replace('PPId=','') not in proteomes:
+                proteomes[str(m.group('PPId')).replace('PPId=','')] = 1
+                #proteomes.append(m.group('PPId'))
                 dict1.update({'PPID': m.group('PPId').replace('PPId=', ''), 'OS': m.group('OS').replace('OS=', '')})
                 rows_list.append(dict1)
-            
+            else:
+                proteomes[str(m.group('PPId')).replace('PPId=','')] += 1
             accession = m.group('accession')
             tax = m.group('OS')
             description = m.group('start') + " " + tax + " " + m.group('OX') + " " + m.group('UPId')  + " " + m.group('PPId')
-            m1 = re.search("ribosomal", record.description)
+            m1 = re.search("ribosomal|elongation|chaperon", record.description)
             if m1:
                 # now write the new fasta header + sequence to a file
+                if str(m.group('PPId')).replace('PPId=','') not in profile_proteomes:
+                    profile_proteomes[str(m.group('PPId')).replace('PPId=','')] = 1
+                    #proteomes.append(m.group('PPId'))
+                else:
+                    profile_proteomes[str(m.group('PPId')).replace('PPId=','')] += 1
+                
                 record.description = description
                 if accession not in accessions:
                     accessions.add(accession)
@@ -805,7 +934,13 @@ def filter_high_profile():
         os.remove(os.path.join(settings.install_folder, "fasta", "proteomes.tsv"))
         
     proteomes_out = pd.DataFrame(rows_list)
-    proteomes_out.to_csv(os.path.join(settings.install_folder, "fasta", "proteomes.tsv"), sep='\t')
+    proteomes_out.set_index('PPID', inplace=True)
+    proteomes_count = pd.DataFrame.from_dict(proteomes, orient='index', columns=['full size'])
+    profile_proteomes_count = pd.DataFrame.from_dict(profile_proteomes, orient='index', columns=['profile size'])
+    proteomes_out = proteomes_out.join(proteomes_count)
+    proteomes_out = proteomes_out.join(profile_proteomes_count)
+    proteomes_out = proteomes_out.reset_index()
+    proteomes_out.to_csv(os.path.join(settings.install_folder, "fasta", "proteomes.tsv"), sep='\t', index=False)
     
     if os.path.exists("%s%sfull.fasta.gz" % (os.path.join(settings.install_folder, "fasta"), os.sep)):
         os.remove("%s%sfull.fasta.gz" % (os.path.join(settings.install_folder, "fasta"), os.sep))

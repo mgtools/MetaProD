@@ -359,6 +359,14 @@ class SearchSetting(models.Model):
         default=90, 
         help_text="Top percent of NSAF to include when profiling."
     )
+    profile_exclude_below = models.IntegerField(
+        default=2,
+        help_text="Exclude species with fewer than or equal to this many proteins per file when profiling."
+    )
+    profile_include_above = models.IntegerField(
+        default=5,
+        help_text="Include species with this many proteins per file regardless of NSAF when profiling."
+    )
     run_deqms = models.BooleanField(
         "Run DEqMS",
         default=True,
