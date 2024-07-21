@@ -84,7 +84,7 @@ def read_results(queue_id, fasta_type):
     
     write_debug("Reading output.", job, project)
     data_psm  = pd.read_csv(data_file_psm, header=0, sep='\t', low_memory=False)
-    data_psm = data_psm[data_psm['Validation']=='Confident']
+
     # peak area
     if searchsetting.mzmine_run_mzmine == True:
         data_psm_pa = pd.read_csv("%s%s%s_mzexport.csv" % (os.path.join(settings.data_folder, project, "out", filename, fasta_type), os.sep, filename), sep=',', low_memory=False)
@@ -122,7 +122,7 @@ def read_results(queue_id, fasta_type):
         for i in range(pos2, final_pos):
             data_psm.iloc[:, i] = data_psm.iloc[:, i].astype(float)
             data_psm.iloc[:, i] = data_psm.iloc[:, i].replace(0, np.nan)
-
+ 
     psmratio_list = []
     psm_list = []
     write_debug("Reading and saving PSMs (this may take some time).", job, project)
@@ -134,6 +134,9 @@ def read_results(queue_id, fasta_type):
             # set to 0 if mzmine didn't find a peak
             peak_area = None
 
+        if row['Validation'] != 'Confident':
+            continue
+            
         psm = Psm(queue=queue,
                   accessions=row['Protein(s)'],
                   sequence=row['Sequence'],
@@ -148,7 +151,8 @@ def read_results(queue_id, fasta_type):
                   confidence=Decimal(row['Confidence [%]']),
                   title=row['Spectrum Title'],
                   type=fasta_type,
-                  peak_area = peak_area)
+                  peak_area = peak_area
+                 )
         # move to bulk_create and just loop again for ratios
         psm_list.append(psm)
         if len(psm_list) > 1000:
@@ -163,6 +167,8 @@ def read_results(queue_id, fasta_type):
     if searchsetting.multiplex == True:   
         write_debug("Updating PSM ratios (this may take some time).", job, project)
         for index, row in data_psm.iterrows():
+            if row['Validation'] != 'Confident':
+                continue        
             # queue, title, and type is probably enough but we'll add a few more 
             # things just to make sure it finds the right one
             psm = Psm.objects.get(queue=queue,
@@ -231,6 +237,7 @@ def read_results(queue_id, fasta_type):
             validation = 'Confident'
         else:
             validation = 'Doubtful'
+            
         peptide = Peptide(queue=queue,
                           accessions=accessions,
                           sequence=sequence,
@@ -241,8 +248,11 @@ def read_results(queue_id, fasta_type):
                           validation=validation,
                           type=fasta_type,
                           peak_area=peak_area,
-                          peak_area_psm=peak_area_psm)
+                          peak_area_psm=peak_area_psm
+                         )
+                              
         peptide_list_add.append(peptide)
+            
         if len(peptide_list) > 1000:
             Peptide.objects.bulk_create(peptide_list_add, ignore_conflicts=True)
             peptide_list_add = []
