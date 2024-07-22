@@ -428,6 +428,7 @@ def infer_proteins_new(queue, fasta_type):
     accession_list = list(protein_peptides)
     
     # we have to load the proteins here to get the species assignments
+    # the script load_fastaproteins can pre-load them to greatly speed this up
     if fasta_type == "profile":
         try:
             load_proteins(project, job, "%s%s%s_%s_concatenated_target_decoy.fasta" % (os.path.join(settings.data_folder, project, "fasta", "profile"), os.sep, project, "profile"), accession_list)
@@ -445,20 +446,20 @@ def infer_proteins_new(queue, fasta_type):
     # this is how many times a species could be linked to a peptide
     write_debug("Calculating species expression.", job, project)
     # make this a dataframe so we can look up the species without doing another db lookup
-    rows_list = []
-    used_accessions = []
+    protein_ppid = {}
+    species_count = {}
     for entry in query:
         accessions = entry.accessions.split(',')
         for accession in accessions:
-            if accession not in used_accessions:
-                dict1 = {}
+            if accession not in protein_ppid:
                 ppid = FastaProtein.objects.filter(accession=accession).values_list('ppid__proteome', flat=True)[0]
-                dict1.update({'accession':accession, 'ppid':ppid})
-                rows_list.append(dict1)
-                used_accessions.append(accession)
-            
-    species_dict = pd.DataFrame(rows_list)
-    
+                protein_ppid[accession] = ppid
+
+            if protein_ppid[accession] not in species_count:
+                species_count[protein_ppid[accession]] = 1
+            else:
+                species_count[protein_ppid[accession]] += 1
+ 
     write_debug("Updating inferences.", job, project)
     
     rows_list = []
@@ -500,10 +501,10 @@ def infer_proteins_new(queue, fasta_type):
             prot = ""
             # species tie requires loading all proteins ahead of time (kind of slow)
             for p in tied_prots:
-                p_species = species_dict[species_dict['accession'] == p]['ppid'].values[0]
-                species_count = len(species_dict[species_dict['ppid'] == p_species])
-                if species_count > best_count:
-                    best_count = species_count
+                p_species = protein_ppid[p]
+                p_species_count = species_count[p_species]
+                if p_species_count > best_count:
+                    best_count = p_species_count
                     prot = p
         # only one, so can use the first entry and skip species ties
         else:

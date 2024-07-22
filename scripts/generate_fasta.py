@@ -1,6 +1,6 @@
 # downloads proteomes and generates profile and full proteome fasta files
 
-import re
+import regex as re
 import argparse
 import os
 import shutil
@@ -503,7 +503,7 @@ def generate_proteome_fasta(project, filename, sample, have_sample):
     if searchsetting.use_human == True:
         print("Appending human proteome to FASTA file.")
         if not os.path.exists("%s%shuman.fasta" % (os.path.join(settings.install_folder, "fasta"), os.sep)):
-            print("human.fasta does not exist. Remove full.fasta.gz and run generate_fasta again.")
+            print("human.fasta does not exist. Remove full.fasta and run generate_fasta again.")
             return
         with open(fasta_file, "a") as f_out:
             with open(os.path.join(settings.install_folder, "fasta", "human.fasta"), "r") as f_in:
@@ -559,7 +559,7 @@ def generate_profile_fasta(project):
     if searchsetting.use_human == True:
         print("Appending human proteome to FASTA file.")
         if not os.path.exists("%s%shuman.fasta" % (os.path.join(settings.install_folder, "fasta"), os.sep)):
-            print("human.fasta does not exist. Remove full.fasta.gz and run generate_fasta again.")
+            print("human.fasta does not exist. Remove full.fasta and run generate_fasta again.")
             return
         with open(fasta_file, "a") as f_out:
             with open(os.path.join(settings.install_folder, "fasta", "human.fasta"), "r") as f_in:
@@ -616,7 +616,7 @@ def generate_custom_fasta(project):
     if searchsetting.use_human == True:
         print("Appending human proteome to FASTA file.")
         if not os.path.exists("%s%shuman.fasta" % (os.path.join(settings.install_folder, "fasta"), os.sep)):
-            print("human.fasta does not exist. Remove full.fasta.gz and run generate_fasta again.")
+            print("human.fasta does not exist. Remove full.fasta and run generate_fasta again.")
             return
         with open(fasta_file, "a") as f_out:
             with open(os.path.join(settings.install_folder, "fasta", "human.fasta"), "r") as f_in:
@@ -819,10 +819,6 @@ def create_full_fasta():
         print("full.fasta exists already. Delete to recreate.")
         return
    
-    if os.path.exists("%s%sfull.fasta.gz" % (os.path.join(settings.install_folder, "fasta"), os.sep)):
-        print("full.fasta.gz exists already. Delete to recreate.")
-        return
-    
     if os.path.exists("%s%shuman.fasta" % (os.path.join(settings.install_folder, "fasta"), os.sep)):
         os.remove("%s%shuman.fasta" % (os.path.join(settings.install_folder, "fasta"), os.sep))
     
@@ -874,16 +870,7 @@ def create_full_fasta():
 def filter_high_profile():
     '''filters high profile out of the full fasta'''
     ''' we also use this to build a list of proteomes and names'''
-    
-    if os.path.exists("%s%sfull.fasta.gz" % (os.path.join(settings.install_folder, "fasta"), os.sep)):
-        if os.path.exists("%s%sfull.fasta" % (os.path.join(settings.install_folder, "fasta"), os.sep)):
-            os.remove("%s%sfull.fasta" % (os.path.join(settings.install_folder, "fasta"), os.sep))
-        
-        print("Unzipping full.fasta.gz")
-        with gzip.open("%s%sfull.fasta.gz" % (os.path.join(settings.install_folder, "fasta"), os.sep), "rb") as f_in:
-            with open("%s%sfull.fasta" % (os.path.join(settings.install_folder, "fasta"), os.sep), "ab") as f_out:
-                shutil.copyfileobj(f_in, f_out)
-
+  
     print("Filtering HAPs to generate profile FASTA (this may take a while).")
     if os.path.exists(os.path.join(settings.install_folder, "fasta", "profile.fasta")):
         os.remove(os.path.join(settings.install_folder, "fasta", "profile.fasta"))
@@ -900,6 +887,7 @@ def filter_high_profile():
         p = re.compile("^(?P<start>(?P<db>[^\|]+)\|(?P<accession>[^\|]+)\|(?P<middle>.+)\s)(?P<OS>OS=.+)\s(?P<OX>OX=.+)\s(?P<UPId>UPId=[^\s]+)\s(?P<PPId>PPId=[^\s]+)$")
         m = p.search(record.description)
         if m:
+            
             if str(m.group('PPId')).replace('PPId=','') not in proteomes:
                 proteomes[str(m.group('PPId')).replace('PPId=','')] = 1
                 #proteomes.append(m.group('PPId'))
@@ -908,6 +896,7 @@ def filter_high_profile():
             else:
                 proteomes[str(m.group('PPId')).replace('PPId=','')] += 1
             accession = m.group('accession')
+
             tax = m.group('OS')
             description = m.group('start') + " " + tax + " " + m.group('OX') + " " + m.group('UPId')  + " " + m.group('PPId')
             m1 = re.search("ribosomal|elongation|chaperon", record.description)
@@ -932,7 +921,7 @@ def filter_high_profile():
     
     if os.path.exists(os.path.join(settings.install_folder, "fasta", "proteomes.tsv")):
         os.remove(os.path.join(settings.install_folder, "fasta", "proteomes.tsv"))
-        
+     
     proteomes_out = pd.DataFrame(rows_list)
     proteomes_out.set_index('PPID', inplace=True)
     proteomes_count = pd.DataFrame.from_dict(proteomes, orient='index', columns=['full size'])
@@ -941,16 +930,5 @@ def filter_high_profile():
     proteomes_out = proteomes_out.join(profile_proteomes_count)
     proteomes_out = proteomes_out.reset_index()
     proteomes_out.to_csv(os.path.join(settings.install_folder, "fasta", "proteomes.tsv"), sep='\t', index=False)
-    
-    if os.path.exists("%s%sfull.fasta.gz" % (os.path.join(settings.install_folder, "fasta"), os.sep)):
-        os.remove("%s%sfull.fasta.gz" % (os.path.join(settings.install_folder, "fasta"), os.sep))
-    
-    print("Zipping full.fasta")
-    with open("%s%sfull.fasta" % (os.path.join(settings.install_folder, "fasta"), os.sep), "rb") as f_in:
-        with gzip.open("%s%sfull.fasta.gz" % (os.path.join(settings.install_folder, "fasta"), os.sep), "wb") as f_out:
-            shutil.copyfileobj(f_in, f_out)
-
-    if os.path.exists("%s%sfull.fasta" % (os.path.join(settings.install_folder, "fasta"), os.sep)):
-        os.remove("%s%sfull.fasta" % (os.path.join(settings.install_folder, "fasta"), os.sep))
         
     print("Finished generating profile FASTA with %s sequences." % seq_count)

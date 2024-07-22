@@ -6,7 +6,7 @@ from .run_command import write_debug, settings
 import os
 import urllib.request
 import csv
-import re
+import regex as re
 from Bio import SeqIO
 import argparse
 import pandas as pd

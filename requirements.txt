@@ -12,3 +12,4 @@ tablib==3.3.0
 django-autocomplete-light==3.9.4
 rpy2==3.5.2
 django-secrets==1.2.4
+regex~=2.5.116
