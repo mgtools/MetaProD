@@ -252,8 +252,7 @@ def infer_proteins(queue, fasta_type):
     for entry in query:
         accessions = entry.accessions.split(',')
         for accession in accessions:
-            fp = FastaProtein.objects.get(accession=accession)
-            ppid = fp.ppid.proteome
+            ppid = FastaProtein.objects.filter(accession=accession).values_list('ppid__proteome', flat=True)[0]
             if ppid not in species_list:
                 species_list[ppid] = 1
             else:
@@ -395,6 +394,7 @@ def infer_proteins_new(queue, fasta_type):
         return
            
     # build list of peptide assignments for each protein
+    write_debug("Building list of initial list of peptide assignments.", job, project)
     protein_peptides = {}
     uniques = {}
     peptide_info = {}
@@ -443,18 +443,23 @@ def infer_proteins_new(queue, fasta_type):
  
     # now we have the species list, which we'll use to break ties, if possible
     # this is how many times a species could be linked to a peptide
-    print("Calculating species expression.")
-    species_list = {}
+    write_debug("Calculating species expression.", job, project)
+    # make this a dataframe so we can look up the species without doing another db lookup
+    rows_list = []
+    used_accessions = []
     for entry in query:
         accessions = entry.accessions.split(',')
         for accession in accessions:
-            fp = FastaProtein.objects.get(accession=accession)
-            ppid = fp.ppid.proteome
-            if ppid not in species_list:
-                species_list[ppid] = 1
-            else:
-                species_list[ppid] += 1
-
+            if accession not in used_accessions:
+                dict1 = {}
+                fp = FastaProtein.objects.get(accession=accession).values_list('ppid__proteome')
+                ppid = fp.ppid.proteome
+                dict1.update({'accession':accession, 'ppid':ppid})
+                rows_list.append(dict1)
+                used_accessions.append(accession)
+            
+    species_dict = pd.DataFrame(rows_list)
+    
     write_debug("Updating inferences.", job, project)
     
     rows_list = []
@@ -467,17 +472,8 @@ def infer_proteins_new(queue, fasta_type):
         #prot = next(iter(counts))
         keys = list(counts)
         count_to_check = counts[keys[0]]
-        current_count = count_to_check
-        prots = [keys[0]]
-        i = 1
-        while (current_count == count_to_check):
-            if i >= len(counts):
-                break
-            current_count = counts[keys[i]]
-            if current_count == count_to_check:
-                prots.append(keys[i])
-            i += 1
-        
+        prots = [k for k, v in counts.items() if v == count_to_check]
+
         # check uniques first
         # if tied, check species
         # if still tied, then just let it be random as there's no way to resolve it
@@ -504,11 +500,9 @@ def infer_proteins_new(queue, fasta_type):
             best_count = 0
             prot = ""
             # species tie requires loading all proteins ahead of time (kind of slow)
-            # this is acceptable
             for p in tied_prots:
-                fp = FastaProtein.objects.get(accession=p)
-                ppid = fp.ppid.proteome
-                species_count = species_list[ppid]
+                p_species = species_dict[species_dict['accession'] == p]['ppid'].values[0]
+                species_count = len(species_dict[species_dict['ppid'] == p_species])
                 if species_count > best_count:
                     best_count = species_count
                     prot = p
