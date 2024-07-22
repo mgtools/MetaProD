@@ -452,8 +452,7 @@ def infer_proteins_new(queue, fasta_type):
         for accession in accessions:
             if accession not in used_accessions:
                 dict1 = {}
-                fp = FastaProtein.objects.get(accession=accession).values_list('ppid__proteome')
-                ppid = fp.ppid.proteome
+                ppid = FastaProtein.objects.filter(accession=accession).values_list('ppid__proteome', flat=True)[0]
                 dict1.update({'accession':accession, 'ppid':ppid})
                 rows_list.append(dict1)
                 used_accessions.append(accession)
