@@ -261,6 +261,13 @@ class SearchSettingAdmin(admin.ModelAdmin):
                 'mzmine_tpd_ppmtolerance'
             )
         }),
+        ('Search engine specific settings', {
+            'classes': ('collapse', 'extrapretty'),
+            'fields': (
+                ('comet_batch_size'),
+                ('msgf_num_tasks'),
+            )
+        }),        
     )
     readonly_fields = ('profile_method',)
 

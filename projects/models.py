@@ -360,8 +360,8 @@ class SearchSetting(models.Model):
         help_text="Top percent of NSAF to include when profiling."
     )
     profile_exclude_below = models.IntegerField(
-        default=2,
-        help_text="Exclude species with fewer than or equal to this many proteins per file when profiling."
+        default=-1,
+        help_text="Exclude species with fewer than or equal to this many proteins per file when profiling. -1 may work best for non-metaproteomic data sets."
     )
     profile_include_above = models.IntegerField(
         default=5,
@@ -423,6 +423,15 @@ class SearchSetting(models.Model):
         default='Uniprot',
         help_text="Which human FASTA file to use."
     )
+    comet_batch_size = models.IntegerField(
+        default=0,
+        help_text="Size of Comet batches. Can change if encountering memory problems (10000 or below works well with low-memory)."
+    )
+    msgf_num_tasks = models.IntegerField(
+        default=0,
+        help_text="Number of tasks for MSGF+. Negative numbers can reduce memory usage."
+    )
+    
     def __str__(self):
         return self.project.name
     

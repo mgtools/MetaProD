@@ -433,71 +433,44 @@ def generate_proteome_fasta(project, filename, sample, have_sample):
         
     print("Generating full proteome FASTA.")
 
+    # old version loaded each individual zip
+    # new version can just use full.fasta
+    # now we can just keep keep track of the proteomes and go through and add
+    # anything that proteome and only do 1 pass of full.fasta
+    
     accessions = set()
-    for proteome in proteomes:
-        # check to figure out what dir it is in:
-        if os.path.exists(os.path.join(settings.install_folder, "fasta", "pan", "%s.fasta.gz" % proteome)):
-            if os.path.exists(os.path.join(settings.install_folder, "fasta", "pan", "%s.fasta" % proteome)):
-                os.remove(os.path.join(settings.install_folder, "fasta", "pan", "%s.fasta" % proteome))
-            with gzip.open(os.path.join(settings.install_folder, "fasta", "pan", "%s.fasta.gz" % proteome), "rb") as f_in:
-                with open(os.path.join(settings.install_folder, "fasta", "pan", "%s.fasta" % proteome), "ab") as f_out:
-                    shutil.copyfileobj(f_in, f_out)
-            # save the file with the corrected taxonomy
-            for record in SeqIO.parse(os.path.join(settings.install_folder, "fasta", "pan", "%s.fasta" % proteome), "fasta"):
-                p = re.compile("^(?P<start>(?P<db>[^\|]+)\|(?P<accession>[^\|]+)\|(?P<middle>.+)\s)(?P<OS>OS=.+)\s(?P<OX>OX=.+)\s(?P<UPId>UPId=[^\s]+)\s(?P<PPId>PPId=[^\s]+)$")
-                m1 = p.search(record.description)
-                if m1:
-                    accession = m1.group('accession')
-                    tax = m1.group('OS')
-                    # strip out the =
-                    upid = m1.group('UPId').replace("=","")
-                    ppid = m1.group('PPId').replace("=","")
-                    # add them to OS
-                    tax = tax + " " + upid + " " + ppid
-                    description = m1.group('start') + " " + tax + " " + m1.group('OX') + " " + m1.group('UPId')  + " " + m1.group('PPId')
-                    
-                    # now write the new fasta header + sequence to a file
-                    record.description = description
-                    if accession not in accessions:
-                        accessions.add(accession)
-                        with open("%s%s%s_%s_%s.fasta" % (os.path.join(settings.data_folder, project, "fasta", "proteome", filename), os.sep, project, filename, "proteome"), "a") as fasta_out:
-                            SeqIO.write(record, fasta_out, "fasta")
-                else:
-                    print("no match for %s" % record.description)
-                    
-            if os.path.exists(os.path.join(settings.install_folder, "fasta", "pan", "%s.fasta" % proteome)):
-                os.remove(os.path.join(settings.install_folder, "fasta", "pan", "%s.fasta" % proteome))
-        elif os.path.exists(os.path.join(settings.install_folder, "fasta", "ref", "%s.fasta.gz" % proteome)):
-            if os.path.exists(os.path.join(settings.install_folder, "fasta", "ref", "%s.fasta" % proteome)):
-                os.remove(os.path.join(settings.install_folder, "fasta", "ref", "%s.fasta" % proteome))
-            with gzip.open(os.path.join(settings.install_folder, "fasta", "ref", "%s.fasta.gz" % proteome), "rb") as f_in:
-                with open(os.path.join(settings.install_folder, "fasta", "ref", "%s.fasta" % proteome), "ab") as f_out:
-                    shutil.copyfileobj(f_in, f_out)
-            filename_in = Path(os.path.join(settings.install_folder, "fasta", "ref", "%s.fasta.gz" % proteome)).stem
-            for record in SeqIO.parse(os.path.join(settings.install_folder, "fasta", "ref", "%s.fasta" % proteome), "fasta"):
-                p = re.compile("^(?P<start>(?P<db>[^\|]+)\|(?P<accession>[^\|]+)\|(?P<middle>.+)\s)(?P<OS>OS=.+)\s(?P<OX>OX=.+)")
-                m1 = p.search(record.description)
-                if m1:
-                    accession = m1.group('accession')
-                    tax = m1.group('OS')
-                    # strip out the =
-                    upid = 'UPId' + Path(filename_in).stem
-                    ppid = 'PPId' + Path(filename_in).stem
-                    # add them to OS
-                    tax = tax + " " + upid + " " + ppid
-                    description = m1.group('start') + " " + tax + " " + m1.group('OX') + " " + "UPId=" + Path(filename_in).stem + " " + "PPId=" + Path(filename_in).stem
-                    # now write the new fasta header + sequence to a file
-                    record.description = description
-                    if accession not in accessions:
-                        accessions.add(accession)
-                        with open("%s%s%s_%s_%s.fasta" % (os.path.join(settings.data_folder, project, "fasta", "proteome", filename), os.sep, project, filename, "proteome"), "a") as fasta_out:
-                            SeqIO.write(record, fasta_out, "fasta")
-            if os.path.exists(os.path.join(settings.install_folder, "fasta", "ref", "%s.fasta" % proteome)):
-                os.remove(os.path.join(settings.install_folder, "fasta", "ref", "%s.fasta" % proteome))
-        else:
-            print("Error. Missing proteome download for %s" % proteome)
-            return
+ 
+    if not os.path.exists(os.path.join(settings.install_folder, "fasta", "full.fasta")):
+        print("full.fasta does not exist. Use generate_fasta to recreate.")
+        return
 
+    if len(proteomes) > 0:
+        for record in SeqIO.parse(os.path.join(settings.install_folder, "fasta", "full.fasta"), "fasta"):
+            p = re.compile("^(?P<start>(?P<db>[^\|]+)\|(?P<accession>[^\|]+)\|(?P<middle>.+)\s)(?P<OS>OS=.+)\s(?P<OX>OX=.+)\s(?P<UPId>UPId=[^\s]+)\s(?P<PPId>PPId=[^\s]+)$")
+            m1 = p.search(record.description)
+            if m1:
+                accession = m1.group('accession')
+                tax = m1.group('OS')
+                # strip out the =
+                upid = m1.group('UPId').replace("=","")
+                ppid = m1.group('PPId').replace("=","")
+                
+                if str(ppid).replace('PPId','') not in proteomes:
+                    continue
+                    
+                # add them to OS
+                tax = tax + " " + upid + " " + ppid
+                description = m1.group('start') + " " + tax + " " + m1.group('OX') + " " + m1.group('UPId')  + " " + m1.group('PPId')
+                    
+                # now write the new fasta header + sequence to a file
+                record.description = description
+                if accession not in accessions:
+                    accessions.add(accession)
+                    with open(fasta_file, "a") as fasta_out:
+                        SeqIO.write(record, fasta_out, "fasta")
+            else:
+                print("no match for %s" % record.description)
+ 
     print("Done generating proteome FASTA.")
     
     if searchsetting.use_human == True:
