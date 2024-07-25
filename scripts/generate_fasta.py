@@ -9,7 +9,9 @@ import csv
 from pathlib import Path
 import urllib.request
 from Bio import SeqIO
+from Bio.SeqIO.FastaIO import SimpleFastaParser
 import pandas as pd
+import time
 
 from django.db.models import Sum
 from django.core.exceptions import ObjectDoesNotExist
@@ -437,41 +439,37 @@ def generate_proteome_fasta(project, filename, sample, have_sample):
     # new version can just use full.fasta
     # now we can just keep keep track of the proteomes and go through and add
     # anything that proteome and only do 1 pass of full.fasta
-    
-    accessions = set()
- 
+
     if not os.path.exists(os.path.join(settings.install_folder, "fasta", "full.fasta")):
         print("full.fasta does not exist. Use generate_fasta to recreate.")
         return
 
-    if len(proteomes) > 0:
+    # search full.fasta for the appropriate proteins
+    start = time.time()
+    if len(proteomes) > 0:    
+        accessions = set()
+        p = re.compile("^(?P<db>[^\|]+)\|(?P<accession>[^\|]+)\|.+$")
         for record in SeqIO.parse(os.path.join(settings.install_folder, "fasta", "full.fasta"), "fasta"):
-            p = re.compile("^(?P<start>(?P<db>[^\|]+)\|(?P<accession>[^\|]+)\|(?P<middle>.+)\s)(?P<OS>OS=.+)\s(?P<OX>OX=.+)\s(?P<UPId>UPId=[^\s]+)\s(?P<PPId>PPId=[^\s]+)$")
-            m1 = p.search(record.description)
-            if m1:
-                accession = m1.group('accession')
-                tax = m1.group('OS')
-                # strip out the =
-                upid = m1.group('UPId').replace("=","")
-                ppid = m1.group('PPId').replace("=","")
+            if any(proteome in record.description for proteome in proteomes):
+                m1 = p.search(record.description)
+                if m1:
+                    accession = m1.group('accession')
                 
-                if str(ppid).replace('PPId','') not in proteomes:
-                    continue
+                    if accession in accessions:
+                        continue
                     
-                # add them to OS
-                tax = tax + " " + upid + " " + ppid
-                description = m1.group('start') + " " + tax + " " + m1.group('OX') + " " + m1.group('UPId')  + " " + m1.group('PPId')
-                    
-                # now write the new fasta header + sequence to a file
-                record.description = description
-                if accession not in accessions:
                     accessions.add(accession)
+                
                     with open(fasta_file, "a") as fasta_out:
                         SeqIO.write(record, fasta_out, "fasta")
-            else:
-                print("no match for %s" % record.description)
- 
+                else:
+                    print("no match for %s" % record.description)
+                
     print("Done generating proteome FASTA.")
+
+    end = time.time()
+    runtime = end-start
+    print(runtime)
     
     if searchsetting.use_human == True:
         print("Appending human proteome to FASTA file.")
@@ -816,8 +814,8 @@ def create_full_fasta():
             with gzip.open(os.path.join(settings.install_folder, "fasta", "ref", file), "rb") as f_in:
                 with open(os.path.join(settings.install_folder, "fasta", "ref", filename), "ab") as f_out:
                     shutil.copyfileobj(f_in, f_out)
+            p = re.compile("^(?P<start>(?P<db>[^\|]+)\|(?P<accession>[^\|]+)\|(?P<middle>.+)\s)(?P<OS>OS=.+)\s(?P<OX>OX=.+)")                    
             for record in SeqIO.parse(os.path.join(settings.install_folder, "fasta", "ref", filename), "fasta"):
-                p = re.compile("^(?P<start>(?P<db>[^\|]+)\|(?P<accession>[^\|]+)\|(?P<middle>.+)\s)(?P<OS>OS=.+)\s(?P<OX>OX=.+)")
                 m1 = p.search(record.description)
                 if m1:
                     tax = m1.group('OS')
