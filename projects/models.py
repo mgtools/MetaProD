@@ -361,11 +361,11 @@ class SearchSetting(models.Model):
     )
     profile_exclude_below = models.IntegerField(
         default=-1,
-        help_text="Exclude species with fewer than or equal to this many proteins per file when profiling. -1 may work best for non-metaproteomic data sets."
+        help_text="Exclude species with fewer than this many proteins when profiling. 1 may work best for non-metaproteomic data sets."
     )
     profile_include_above = models.IntegerField(
         default=5,
-        help_text="Include species with this many proteins per file regardless of NSAF when profiling."
+        help_text="Include species with at least this many proteins regardless of NSAF when profiling."
     )
     run_deqms = models.BooleanField(
         "Run DEqMS",

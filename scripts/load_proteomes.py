@@ -33,17 +33,14 @@ def load_proteomes():
 
     proteomes = pd.read_csv(os.path.join(settings.install_folder, "fasta", 
                                          "proteomes.tsv"), sep='\t')
-                                         
-    proteomes['full size'] = proteomes['full size'].fillna(0)                                         
-    proteomes['profile size'] = proteomes['profile size'].fillna(0)
-    
+
     for index, row in proteomes.iterrows():
         if row['PPID'] not in reference_proteomes:
             reference_proteomes.append(row['PPID'])
             proteome = Proteome(proteome=row['PPID'],
                                 organism=row['OS'],
-                                full_size=row['full size'],
-                                profile_size=row['profile size'])           
+                                full_size=row['Full Size'],
+                                profile_size=row['Profile Size'])           
             proteomes_to_add.append(proteome)                        
             if len(proteomes_to_add) > 5000:
                 Proteome.objects.bulk_create(proteomes_to_add, 

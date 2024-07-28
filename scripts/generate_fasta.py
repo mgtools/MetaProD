@@ -12,13 +12,15 @@ from Bio import SeqIO
 from Bio.SeqIO.FastaIO import SimpleFastaParser
 import pandas as pd
 import time
+import multiprocessing
+from concurrent.futures import ProcessPoolExecutor, as_completed, ThreadPoolExecutor
 
 from django.db.models import Sum
 from django.core.exceptions import ObjectDoesNotExist
 
 from projects.models import Queue, SearchSetting
 from results.models import Protein, SpeciesSummary, SpeciesFileSummary
-from .run_command import run_command, settings
+from .run_command import run_command, settings, write_log
 from .load_proteomes import load_proteomes
 
 def run(*args):
@@ -57,85 +59,79 @@ def get_batch(batch_url):
 # end uniprot code
 
 def generate_fasta(project, type):
-    print("Starting generate_fasta for %s %s." % (project, type))
+    write_log("Starting generate_fasta for %s %s." % (project, type), "fasta", project)
 
     try:
         searchsetting=SearchSetting.objects.get(project=project)
     except ObjectDoesNotExist:
-        print("Missing searchsetting for project: %s." % project)
+        write_log("Missing searchsetting for project: %s." % (project), "fasta", project)
         return False
 
     if searchsetting.profile == False:
-        print("Generating a FASTA is not supported if profiling is turned off.")
-        print("This feature not yet implemented so turn profiling on in the searchsettings.")
+        write_log("Generating a FASTA is not supported if profiling is turned off.", "fasta", project)
+        write_log("This feature not yet implemented so turn profiling on in the searchsettings.", "fasta", project)
         return 0
 
     if searchsetting.custom_fasta == True:
         type = "custom"
-        print("Project is set to use a custom FASTA.")
+        write_log("Project is set to use a custom FASTA.", "fasta", project)
         
     samples = {}
     if type == "proteome":
+        write_log("Including proteomes with at least %s proteins." % (searchsetting.profile_include_above), "fasta", project)
+        write_log("Excluding proteomes with fewer than %s proteins." % (searchsetting.profile_exclude_below), "fasta", project)   
+    
         if not os.path.exists(os.path.join(settings.data_folder, project, "fasta")):
             os.makedirs(os.path.join(settings.data_folder, project, "fasta"))
         if not os.path.exists(os.path.join(settings.data_folder, project, "fasta", "proteome")):
             os.makedirs(os.path.join(settings.data_folder, project, "fasta", "proteome"))
-
+      
+        # list of files in project
         query = (Queue.objects.filter(status__gte=Queue.Status.FINISHED_PROF)
                               .exclude(error__gte=2)
                               .exclude(skip=True)
                               .filter(project__name=project))
-
-        for entry in query:
-            # if the sample isn't set, we have to use the filename
-            if entry.sample is None:
-                sample = entry.filename
-                have_sample = 0
-            else:
-                sample = entry.sample.name
-                have_sample = 1
-
-            if os.path.exists(os.path.join(settings.data_folder, project, "fasta", "proteome", entry.filename)):
-                shutil.rmtree(os.path.join(settings.data_folder, project, "fasta", "proteome", entry.filename))
-            os.makedirs(os.path.join(settings.data_folder, project, "fasta", "proteome", entry.filename))
+        
+        # can send them individually
+        if searchsetting.profile_type == SearchSetting.ProfileType.FILE:
+            write_log("File based profiling.", "fasta", project)
+            start = time.time()
+        
+            for q in query:
+                generate_proteome_fasta(project, [q.filename], 0)
                     
-            if searchsetting.profile_type == SearchSetting.ProfileType.FILE:
-                print("File based profiling. Generating proteome FASTA for %s" % entry.filename)
-                generate_proteome_fasta(project, entry.filename, "", have_sample)
-            elif searchsetting.profile_type == SearchSetting.ProfileType.SAMPLE:
-                # haven't made it for the sample yet
-                if sample not in samples:
-                    print("Sample based profiling. Generating proteome FASTA for %s (have_sample=%s)." % (sample, have_sample))
-                    generate_proteome_fasta(project, entry.filename, sample, have_sample)
-                    samples[sample] = entry.filename
+            end = time.time()
+            runtime = end-start
+            print(runtime)
+        
+        # need to check if a sample has been assigned
+        # if no sample, that file has to be processed individually
+        # if sample, collect other files with the same sample
+        elif searchsetting.profile_type == SearchSetting.ProfileType.SAMPLE:
+            write_log("Sample based profiling.", "fasta", project)
+            samples = {}
+            for q in query:
+                # if there's no sample, then it has to be filename
+                if q.sample is None:
+                    generate_proteome_fasta(project, [q.filename], 0)
                 else:
-                    print("FASTA already exists. Copying.")
-                    previous = samples[sample]
-                    shutil.copy("%s%s%s_%s_%s_concatenated_target_decoy.fasta" % (os.path.join(settings.data_folder, project, "fasta", "proteome", previous), os.sep, project, previous, "proteome"),
-                                "%s%s%s_%s_%s_concatenated_target_decoy.fasta" % (os.path.join(settings.data_folder, project, "fasta", "proteome", entry.filename), os.sep, project, entry.filename, "proteome"))
-            else:
-                # the first pooled hasn't been made yet
-                if len(samples) < 1:
-                    print("Project based profiling. Generating proteome FASTA for %s" % (project))
-                    generate_proteome_fasta(project, entry.filename, "", have_sample)
-
-                    samples[sample] = entry.filename
-                # it's already been made, so just copy the first one everywhere else
-                else:
-                    print("FASTA already exists. Copying.")
-                    previous = list(samples.values())[0]
-                    shutil.copy("%s%s%s_%s_%s_concatenated_target_decoy.fasta" % (os.path.join(settings.data_folder, project, "fasta", "proteome", previous), os.sep, project, previous, "proteome"),
-                                "%s%s%s_%s_%s_concatenated_target_decoy.fasta" % (os.path.join(settings.data_folder, project, "fasta", "proteome", entry.filename), os.sep, project, entry.filename, "proteome"))
-          
+                    if q.sample in samples:
+                        samples[q.sample].append(q.filename)
+                    else:
+                        samples[q.sample] = [q.filename]
+            
+            if len(samples) > 0:
+                for sample in samples:
+                    generate_proteome_fasta(project, samples[sample], 1)
                 
-            fasta_file_concat = "%s%s%s_%s_%s_concatenated_target_decoy.fasta" % (os.path.join(settings.data_folder, project, "fasta", "proteome", entry.filename), os.sep, project, entry.filename, "proteome")
-                
-            if not os.path.exists(fasta_file_concat):
-                print("Missing FASTA file:", project, "fasta.")
-                entry.error += 1
-                entry.save()
-                    
-                print("Failed to generate proteome_fasta for %s." % (entry.filename))
+        elif searchsetting.profile_type == SearchSetting.ProfileType.PROJECT:
+            write_log("Project based profiling.", "fasta", project)
+            files = []
+            for q in query:
+                files.append(q.filename)
+            
+            generate_proteome_fasta(project, files, 0)
+            # we generate the FASTA for 1 file and copy it to others
             
     elif type == "profile":
         # move crap to somewhere accessible without project
@@ -151,8 +147,8 @@ def generate_fasta(project, type):
         fasta_file_concat = "%s%s%s_profile_concatenated_target_decoy.fasta" % (os.path.join(settings.data_folder, project, "fasta", "profile"), os.sep, project)
                 
         if not os.path.exists(fasta_file_concat):
-            print("Missing FASTA file.", project, "fasta")
-            print("Failed to generate profile FASTA for %s." % (project))
+            write_log("Missing FASTA file.", "fasta", project)
+            write_log("Failed to generate profile FASTA for %s." % (project), "fasta", project)
     
     elif type == "custom":
         # move crap to somewhere accessible without project
@@ -168,210 +164,66 @@ def generate_fasta(project, type):
         fasta_file_concat = "%s%s%s_custom_concatenated_target_decoy.fasta" % (os.path.join(settings.data_folder, project, "fasta", "custom"), os.sep, project)
 
         if not os.path.exists(fasta_file_concat):
-            print("Missing FASTA file.", project, "fasta")
-            print("Failed to generate profile FASTA for %s." % (project))
-            
-def generate_proteome_fasta(project, filename, sample, have_sample):
+            write_log("Missing FASTA file.", "fasta", project)
+            write_log("Failed to generate profile FASTA for %s." % (project), "fasta", project)
+
+def generate_proteome_fasta(project, filenames, have_sample):
+
     try:
         searchsetting=SearchSetting.objects.get(project__name=project)
     except:
-        print("Searchsetting does not exist for %s. Make sure the project and searchsetting are added first." % (project))
+        write_log("Searchsetting does not exist for %s. Make sure the project and searchsetting are added first." % (project), "fasta", project)
         return 0
-   
-    fasta_file = "%s%s%s_%s_%s.fasta" % (os.path.join(settings.data_folder, project, "fasta", "proteome", filename), os.sep, project, filename, "proteome")
-    
-    print("Calculating species to include in FASTA.")
-
+ 
+    write_log("Generating FASTA for %s." % (filenames), "fasta", project)
+                     
     banned_species = []
-                                     
-    proteomes = []
-    count = 0
-    current_psm = 0
-
-    if searchsetting.profile_type == SearchSetting.ProfileType.PROJECT:
-        query_f = (Queue.objects.filter(project__name=project)
-                                .exclude(skip=True)
-                                .exclude(error__gte=2)
-                                .filter(status=Queue.Status.FINISHED_PROF))
-        num_files = len(query_f)
-        
-        query_s = (SpeciesSummary.objects.filter(project_id=project)
-                                         .filter(type="profile")
+    proteomes = []  
+    # these are the proteomes to exclude based on too few proteins
+    query_s = (SpeciesFileSummary.objects.filter(type='profile')
+                                         .filter(queue__filename__in=filenames)
+                                         .filter(queue__project=project)
                                          .exclude(ppid_id=0)
                                          .exclude(ppid_id='UP000005640')
-                                         .filter(val_num_protein__lte=(searchsetting.profile_exclude_below*num_files+1))
-                                         .values('ppid_id'))
-                                         
-        for entry in query_s:
-            banned_species.append(entry['ppid_id'])
-                                         
-        query_t = (
-            Protein.objects
-                .filter(type="profile")
-                .filter(queue__status=Queue.Status.FINISHED_PROF)
-                .filter(queue__project__name=project)
-                .exclude(queue__skip=True)
-                .exclude(queue__error__gte=2)
-                .exclude(fp__ppid__proteome='0')
-                .exclude(fp__ppid__proteome='UP000005640')
-                .exclude(fp__ppid__proteome__in=banned_species)
-                .aggregate(Sum('nsaf'))
-        )
-                                      
-        total = query_t['nsaf__sum']
-        if not total is None:
-            total = float(total) * float(searchsetting.profile_threshold / 100)
-            query = (
-                Protein.objects
-                    .filter(type="profile")
-                    .filter(queue__status=Queue.Status.FINISHED_PROF)
-                    .filter(queue__project__name=project)
-                    .exclude(queue__skip=True)
-                    .exclude(queue__error__gte=2)
-                    .exclude(fp__ppid__proteome='0')
-                    .exclude(fp__ppid__proteome='UP000005640')
-                    .exclude(fp__ppid__proteome__in=banned_species)
-                    .values('fp__ppid__proteome')
-                    .annotate(sum=Sum('nsaf'))
-                    .order_by('-sum')
-            )
+                                         .values('ppid_id')
+                                         .annotate(sum=Sum('val_num_protein'))
+                                         .filter(sum__lt=searchsetting.profile_exclude_below)
+                                         .values_list('ppid_id', flat=True))
+    banned_species = list(query_s)
+   
+    # sum of all bacterial nsaf for the files being queried
+    query_t = (Protein.objects.filter(type="profile")
+                              .filter(queue__filename__in=filenames)
+                              .filter(queue__project=project)
+                              .exclude(fp__ppid__proteome='0')
+                              .exclude(fp__ppid__proteome='UP000005640')
+                              .exclude(fp__ppid__proteome__in=banned_species)
+                              .aggregate(Sum('nsaf')))
+    total = query_t['nsaf__sum']
 
-    # not pooled, so a filter also needs to specify the filename
-    elif searchsetting.profile_type == SearchSetting.ProfileType.SAMPLE and have_sample == 1: 
-        query_f = (Queue.objects.filter(project__name=project)
-                                .exclude(skip=True)
-                                .exclude(error__gte=2)
-                                .filter(sample__name=sample)
-                                .filter(sample__project=project)
-                                .filter(status=Queue.Status.FINISHED_PROF))    
-        num_files = len(query_f)
-        
-        query_s = (SpeciesFileSummary.objects.filter(queue__project__name=project)
-                                             .filter(type="profile")
-                                             .filter(queue__sample__name=sample)
-                                             .filter(queue__sample__project=project)
-                                             .filter(queue__status=Queue.Status.FINISHED_PROF)
-                                             .exclude(queue__error__gte=2)
-                                             .exclude(queue__skip=True)
-                                             .exclude(ppid_id=0)
-                                             .exclude(ppid_id='UP000005640')
-                                             .filter(val_num_protein__lte=(searchsetting.profile_exclude_below*num_files+1))
-                                             .values('ppid_id'))
-                                         
-        for entry in query_s:
-            banned_species.append(entry['ppid_id'])
-            
-        query_t = (
-            Protein.objects
-                .filter(type="profile")
-                .filter(queue__project__name=project)
-                .filter(queue__sample__name=sample)
-                .filter(queue__sample__project=project)
-                .filter(queue__status=Queue.Status.FINISHED_PROF)
-                .exclude(queue__error__gte=2)
-                .exclude(queue__skip=True)
-                .exclude(fp__ppid__proteome='0')
-                .exclude(fp__ppid__proteome='UP000005640')
-                .exclude(fp__ppid__proteome__in=banned_species)
-                .aggregate(Sum('nsaf'))
-        )
-                                 
-        total = query_t['nsaf__sum']
-        if not total is None:
-            total = float(total) * float(searchsetting.profile_threshold / 100)
-    
-            query = (
-                Protein.objects
-                    .filter(type="profile")
-                    .filter(queue__project__name=project)
-                    .filter(queue__sample__name=sample)
-                    .filter(queue__sample__project=project)
-                    .filter(queue__status=Queue.Status.FINISHED_PROF)
-                    .exclude(queue__error__gte=2)
-                    .exclude(queue__skip=True)
-                    .exclude(fp__ppid__proteome='0')
-                    .exclude(fp__ppid__proteome='UP000005640')
-                    .exclude(fp__ppid__proteome__in=banned_species)
-                    .values('fp__ppid__proteome')
-                    .annotate(sum=Sum('nsaf'))
-                    .order_by('-sum')
-            )
-
-    # either we are doing filename profiling or the file didn't have a sample 
-    #  set so the sample is effectively the filename
-    else:
-        query_f = (Queue.objects.filter(project_id=project)
-                                .exclude(skip=True)
-                                .exclude(error__gte=2)
-                                .filter(filename=filename)
-                                .filter(status=Queue.Status.FINISHED_PROF))
-        num_files = len(query_f)
-        
-        query_s = (SpeciesFileSummary.objects.filter(queue__project__name=project)
-                                             .filter(type="profile")
-                                             .filter(queue__filename=filename)
-                                             .filter(queue__status=Queue.Status.FINISHED_PROF)
-                                             .exclude(queue__skip=True)
-                                             .exclude(queue__error__gte=2)
-                                             .exclude(ppid_id=0)
-                                             .exclude(ppid_id='UP000005640')
-                                             .filter(val_num_protein__lte=(searchsetting.profile_exclude_below*num_files+1))
-                                             .values('ppid_id'))
-                                         
-        for entry in query_s:
-            banned_species.append(entry['ppid_id'])
-            
-        query_t = (
-            Protein.objects
-                .filter(type="profile")
-                .filter(queue__status=Queue.Status.FINISHED_PROF)
-                .filter(queue__project__name=project)
-                .filter(queue__filename=filename)
-                .exclude(queue__error__gte=2)
-                .exclude(queue__skip=True)
-                .exclude(fp__ppid__proteome='0')
-                .exclude(fp__ppid__proteome='UP000005640')
-                .exclude(fp__ppid__proteome__in=banned_species)
-                .aggregate(Sum('nsaf'))
-        )
-                                      
-        total = query_t['nsaf__sum']
-        if not total is None:
-            total = float(total) * float(searchsetting.profile_threshold / 100)
-
-            query = (
-                Protein.objects
-                    .filter(type="profile")
-                    .filter(queue__status=Queue.Status.FINISHED_PROF)
-                    .filter(queue__project__name=project)
-                    .filter(queue__filename=filename)
-                    .exclude(queue__error__gte=2)
-                    .exclude(queue__skip=True)
-                    .exclude(fp__ppid__proteome='0')
-                    .exclude(fp__ppid__proteome='UP000005640')
-                    .exclude(fp__ppid__proteome__in=banned_species)
-                    .values('fp__ppid__proteome')
-                    .annotate(sum=Sum('nsaf'))
-                    .order_by('-sum')
-            )
-            
     if not total is None:
-        print("Profiling for %s files." % (num_files))
-        print("%s%% of bacterial NSAF: %s" % (searchsetting.profile_threshold, total))
-        print("Including proteomes with at least %s proteins." % (searchsetting.profile_include_above*num_files))
-        print("Excluding proteomes with fewer than %s proteins." % (searchsetting.profile_exclude_below*num_files+1))
-        
+        total = float(total) * float(searchsetting.profile_threshold / 100)
+        query = (Protein.objects.filter(type="profile")
+                                .filter(queue__filename__in=filenames)
+                                .filter(queue__project=project)
+                                .exclude(fp__ppid__proteome='0')
+                                .exclude(fp__ppid__proteome='UP000005640')
+                                .exclude(fp__ppid__proteome__in=banned_species)
+                                .values('fp__ppid__proteome')
+                                .annotate(sum=Sum('nsaf'))
+                                .order_by('-sum'))
+                        
+        count = 0
+        current_psm = 0       
         for entry in query:
             # running count is below the threshold, so we add it
             if count <= total:
                 proteomes.append(entry['fp__ppid__proteome'])
-                count += entry['sum']
-                print("Including %s: NSAF (%s)." % (entry['fp__ppid__proteome'], count))                
+                count += entry['sum']              
                 current_psm = entry['sum']
             else:
                 if entry['sum'] == current_psm:
                     proteomes.append(entry['fp__ppid__proteome'])
-                    print("Including %s due to same NSAF as last entry." % (entry['fp__ppid__proteome']))
                 else:
                     break
             
@@ -384,46 +236,21 @@ def generate_proteome_fasta(project, filename, sample, have_sample):
         
         # so now we have to check again to look for species that weren't in
         # the proteomes yet but that have proteins above the threshold
-        # the threshold should be based on number of files. so if it is set to 5
-        # then it gte than 5*number_of_files
-        if searchsetting.profile_type == SearchSetting.ProfileType.PROJECT:
+        query_s = (SpeciesFileSummary.objects.filter(type='profile')
+                                             .filter(queue__filename__in=filenames)
+                                             .filter(queue__project=project)
+                                             .exclude(ppid_id=0)
+                                             .exclude(ppid_id='UP000005640')
+                                             .values('ppid_id')
+                                             .annotate(sum=Sum('val_num_protein'))
+                                             .filter(sum__gte=(searchsetting.profile_include_above))
+                                             .values_list('ppid_id', flat=True))
+        approved_species = list(query_s)
+        for species in approved_species:
+            if species not in proteomes:
+                proteomes.append(species)
     
-            query_s = (SpeciesSummary.objects.filter(project_id=project)
-                                            .filter(type="profile")
-                                            .exclude(ppid_id=0)
-                                            .exclude(ppid_id='UP000005640')
-                                            .filter(val_num_protein__gte=(searchsetting.profile_include_above*num_files))
-                                            .values('ppid_id'))
-                                            
-        elif searchsetting.profile_type == SearchSetting.ProfileType.SAMPLE and have_sample == 1:
-            query_s = (SpeciesFileSummary.objects.filter(queue__project__name=project)
-                                                 .filter(type="profile")
-                                                 .filter(queue__sample__name=sample)
-                                                 .filter(queue__sample__project=project)
-                                                 .filter(queue__status=Queue.Status.FINISHED_PROF)
-                                                 .exclude(queue__error__gte=2)
-                                                 .exclude(queue__skip=True)
-                                                 .exclude(ppid_id=0)
-                                                 .exclude(ppid_id='UP000005640')
-                                                 .filter(val_num_protein__gte=(searchsetting.profile_include_above*num_files))
-                                                 .values('ppid_id'))        
-        
-        else:
-            query_s = (SpeciesFileSummary.objects.filter(queue__project__name=project)
-                                                 .filter(type="profile")
-                                                 .filter(queue__filename=filename)
-                                                 .filter(queue__status=Queue.Status.FINISHED_PROF)
-                                                 .exclude(queue__skip=True)
-                                                 .exclude(queue__error__gte=2)
-                                                 .exclude(ppid_id=0)
-                                                 .exclude(ppid_id='UP000005640')
-                                                 .filter(val_num_protein__gte=(searchsetting.profile_include_above*num_files))
-                                                 .values('ppid_id'))  
-        for entry in query_s:
-            if entry['ppid_id'] not in proteomes:
-                print("Including %s: (at least %s)." % (entry['ppid_id'], (searchsetting.profile_include_above*num_files)))
-                proteomes.append(entry['ppid_id'])
-                    
+    filename = filenames.pop(0)
     fasta_file = "%s%s%s_%s_%s.fasta" % (os.path.join(settings.data_folder, project, "fasta", "proteome", filename), os.sep, project, filename, "proteome")
     fasta_file_concat = "%s%s%s_%s_%s_concatenated_target_decoy.fasta" % (os.path.join(settings.data_folder, project, "fasta", "proteome", filename), os.sep, project, filename, "proteome")
     
@@ -432,49 +259,29 @@ def generate_proteome_fasta(project, filename, sample, have_sample):
 
     if os.path.exists(fasta_file_concat):
         os.remove(fasta_file_concat)
-        
-    print("Generating full proteome FASTA.")
+ 
+    if os.path.exists(os.path.join(settings.data_folder, project, "fasta", "proteome", filename)):
+        shutil.rmtree(os.path.join(settings.data_folder, project, "fasta", "proteome", filename))
+    os.makedirs(os.path.join(settings.data_folder, project, "fasta", "proteome", filename))
+            
+    if len(proteomes) > 0:
+        write_log("Including the proteomes: %s" % (proteomes), "fasta", project)
+        for proteome in proteomes:
+            if os.path.exists(os.path.join(settings.install_folder, "fasta", "pan", "%s.fasta.gz" % proteome)):
+                location = "pan"
+            elif os.path.exists(os.path.join(settings.install_folder, "fasta", "ref", "%s.fasta.gz" % proteome)):
+                location = "ref"
+            else:
+                write_log("Missing FASTA file for %s." % (proteome), "fasta", project)
+                return
 
-    # old version loaded each individual zip
-    # new version can just use full.fasta
-    # now we can just keep keep track of the proteomes and go through and add
-    # anything that proteome and only do 1 pass of full.fasta
+            with gzip.open(os.path.join(settings.install_folder, "fasta", location, "%s.fasta.gz" % proteome), "rb") as f_in:
+                with open(fasta_file, "ab") as f_out:
+                    shutil.copyfileobj(f_in, f_out)             
 
-    if not os.path.exists(os.path.join(settings.install_folder, "fasta", "full.fasta")):
-        print("full.fasta does not exist. Use generate_fasta to recreate.")
-        return
-
-    # search full.fasta for the appropriate proteins
-    start = time.time()
-    if len(proteomes) > 0:    
-        accessions = set()
-        p = re.compile("^(?P<db>[^\|]+)\|(?P<accession>[^\|]+)\|.+$")
-        for record in SeqIO.parse(os.path.join(settings.install_folder, "fasta", "full.fasta"), "fasta"):
-            if any(proteome in record.description for proteome in proteomes):
-                m1 = p.search(record.description)
-                if m1:
-                    accession = m1.group('accession')
-                
-                    if accession in accessions:
-                        continue
-                    
-                    accessions.add(accession)
-                
-                    with open(fasta_file, "a") as fasta_out:
-                        SeqIO.write(record, fasta_out, "fasta")
-                else:
-                    print("no match for %s" % record.description)
-                
-    print("Done generating proteome FASTA.")
-
-    end = time.time()
-    runtime = end-start
-    print(runtime)
-    
     if searchsetting.use_human == True:
-        print("Appending human proteome to FASTA file.")
         if not os.path.exists("%s%shuman.fasta" % (os.path.join(settings.install_folder, "fasta"), os.sep)):
-            print("human.fasta does not exist. Remove full.fasta and run generate_fasta again.")
+            write_log("human.fasta does not exist. Remove full.fasta and run generate_fasta again.", "fasta", project)
             return
         with open(fasta_file, "a") as f_out:
             with open(os.path.join(settings.install_folder, "fasta", "human.fasta"), "r") as f_in:
@@ -482,20 +289,38 @@ def generate_proteome_fasta(project, filename, sample, have_sample):
             f_out.write(os.linesep)
 
     if searchsetting.use_crap == True:
-        print("Appending CRAP database to FASTA file.")
         # copy CRAP to destination file
         with open(fasta_file, "a") as f_out:
             with open(os.path.join(settings.install_folder, "fasta", "crap.fasta"), "r") as f_in:
                 shutil.copyfileobj(f_in, f_out)
             f_out.write(os.linesep)
-
+    
     generate_decoy(project, fasta_file)
-      
+    
+    copy_fasta(project, filename, filenames)
+
+def copy_fasta(project, filename, filenames):
+    ''' this just copies the fasta of filename for each of the entries in filename '''
+    
+    if os.path.exists("%s%s%s_%s_%s_concatenated_target_decoy.fasta" % (os.path.join(settings.data_folder, project, "fasta", "proteome", filename), os.sep, project, filename, "proteome")):
+        for file in filenames:
+            write_log("Copying fasta for %s from %s." % (file, filename), "fasta", project)
+
+            if os.path.exists(os.path.join(settings.data_folder, project, "fasta", "proteome", file)):
+                shutil.rmtree(os.path.join(settings.data_folder, project, "fasta", "proteome", file))
+            os.makedirs(os.path.join(settings.data_folder, project, "fasta", "proteome", file))
+    
+            if os.path.exists("%s%s%s_%s_%s.fasta" % (os.path.join(settings.data_folder, project, "fasta", "proteome", file), os.sep, project, file, "proteome")):
+                os.remove("%s%s%s_%s_%s.fasta" % (os.path.join(settings.data_folder, project, "fasta", "proteome", file), os.sep, project, file, "proteome"))
+                
+            shutil.copy("%s%s%s_%s_%s_concatenated_target_decoy.fasta" % (os.path.join(settings.data_folder, project, "fasta", "proteome", filename), os.sep, project, filename, "proteome"),
+                       "%s%s%s_%s_%s_concatenated_target_decoy.fasta" % (os.path.join(settings.data_folder, project, "fasta", "proteome", file), os.sep, project, file, "proteome")) 
+                       
 def generate_profile_fasta(project):
     try:
         searchsetting=SearchSetting.objects.get(project__name=project)
     except:
-        print("Searchsetting does not exist for %s. Make sure the project and searchsetting are added first." % (project))
+        write_log("Searchsetting does not exist for %s. Make sure the project and searchsetting are added first." % (project), "fasta", project)
         return 0
         
     # make sure the fasta dir exists
@@ -506,13 +331,12 @@ def generate_profile_fasta(project):
         os.makedirs(os.path.join(settings.data_folder, project, "fasta", "profile"))
         
     if os.path.exists("%s%s%s.fasta" % (os.path.join(settings.install_folder, "fasta"), os.sep, "profile")):
-        print("Profile FASTA already exists. Using existing FASTA.")
+        write_log("Profile FASTA already exists. Using existing FASTA.", "fasta", project)
     else:
-        print("Profile FASTA does not exist. Downloading a new FASTA.")
-        print("Note: Uniprot sometimes changes their website. Let the authors know if this does not work anymore.")
-        download_profile_fasta()
-        create_full_fasta()
-        filter_high_profile()
+        write_log("Profile FASTA does not exist. Downloading a new FASTA.", "fasta", project)
+        write_log("Note: Uniprot sometimes changes their website. Let the authors know if this does not work anymore.", "fasta", project)
+        download_profile_fasta(project)
+        create_full_fasta(project)
 
     fasta_file = "%s%s%s_%s.fasta" % (os.path.join(settings.data_folder, project, "fasta", "profile"), os.sep, project, "profile")
     fasta_file_concat = "%s%s%s_%s_concatenated_target_decoy.fasta" % (os.path.join(settings.data_folder, project, "fasta", "profile"), os.sep, project, "profile")
@@ -528,9 +352,9 @@ def generate_profile_fasta(project):
                 "%s%s%s_%s.fasta" % (os.path.join(settings.data_folder, project, "fasta", "profile"), os.sep, project, "profile"))
 
     if searchsetting.use_human == True:
-        print("Appending human proteome to FASTA file.")
+        write_log("Appending human proteome to FASTA file.", "fasta", project)
         if not os.path.exists("%s%shuman.fasta" % (os.path.join(settings.install_folder, "fasta"), os.sep)):
-            print("human.fasta does not exist. Remove full.fasta and run generate_fasta again.")
+            write_log("human.fasta does not exist. Remove profile.fasta and run generate_fasta again.", "fasta", project)
             return
         with open(fasta_file, "a") as f_out:
             with open(os.path.join(settings.install_folder, "fasta", "human.fasta"), "r") as f_in:
@@ -538,7 +362,7 @@ def generate_profile_fasta(project):
             f_out.write(os.linesep)
 
     if searchsetting.use_crap == True:
-        print("Appending CRAP database to FASTA file.")
+        write_log("Appending CRAP database to FASTA file.", "fasta", project)
         # copy CRAP to destination file
         with open(fasta_file, "a") as f_out:
             with open(os.path.join(settings.install_folder, "fasta", "crap.fasta"), "r") as f_in:
@@ -550,13 +374,13 @@ def generate_profile_fasta(project):
     if success == True:
         load_proteomes()
 
-        print("Done generating profile FASTA.")
+        write_log("Done generating profile FASTA.", "fasta", project)
     
 def generate_custom_fasta(project):
     try:
         searchsetting=SearchSetting.objects.get(project__name=project)
     except:
-        print("Searchsetting does not exist for %s. Make sure the project and searchsetting are added first." % (project))
+        write_log("Searchsetting does not exist for %s. Make sure the project and searchsetting are added first." % (project), "fasta", project)
         return 0
         
     # make sure the fasta dir exists
@@ -567,8 +391,8 @@ def generate_custom_fasta(project):
         os.makedirs(os.path.join(settings.data_folder, project, "fasta", "custom"))
         
     if not os.path.exists("%s%s%s.fasta" % (os.path.join(settings.data_folder, project, "fasta"), os.sep, project)):
-        print("Custom FASTA does not exist.")
-        print("Place the custom fasta in: %s%s%s.fasta" % (os.path.join(settings.data_folder, project, "fasta"), os.sep, project))
+        write_log("Custom FASTA does not exist.", "fasta", project)
+        write_log("Place the custom fasta in: %s%s%s.fasta" % (os.path.join(settings.data_folder, project, "fasta"), os.sep, project), "fasta", project)
         return
 
     fasta_file = "%s%s%s_%s.fasta" % (os.path.join(settings.data_folder, project, "fasta", "custom"), os.sep, project, "custom")
@@ -585,9 +409,9 @@ def generate_custom_fasta(project):
                 "%s%s%s_%s.fasta" % (os.path.join(settings.data_folder, project, "fasta", "custom"), os.sep, project, "custom"))
 
     if searchsetting.use_human == True:
-        print("Appending human proteome to FASTA file.")
+        write_log("Appending human proteome to FASTA file.", "fasta", project)
         if not os.path.exists("%s%shuman.fasta" % (os.path.join(settings.install_folder, "fasta"), os.sep)):
-            print("human.fasta does not exist. Remove full.fasta and run generate_fasta again.")
+            write_log("human.fasta does not exist. Remove full.fasta and run generate_fasta again.", "fasta", project)
             return
         with open(fasta_file, "a") as f_out:
             with open(os.path.join(settings.install_folder, "fasta", "human.fasta"), "r") as f_in:
@@ -595,7 +419,7 @@ def generate_custom_fasta(project):
             f_out.write(os.linesep)
 
     if searchsetting.use_crap == True:
-        print("Appending CRAP database to FASTA file.")
+        write_log("Appending CRAP database to FASTA file.", "fasta", project)
         # copy CRAP to destination file
         with open(fasta_file, "a") as f_out:
             with open(os.path.join(settings.install_folder, "fasta", "crap.fasta"), "r") as f_in:
@@ -608,12 +432,12 @@ def generate_custom_fasta(project):
     #if success == True:
     #    load_proteomes()
 
-    print("Done generating custom FASTA.")
+    write_log("Done generating custom FASTA.", "fasta", project)
     
 # should only need the filename for this as the decoy will end up in the same dir as the filename
 def generate_decoy(project, fasta_file):
     ''' generate decoy sequences for FASTA file '''
-    print("Generating decoy sequences.")
+    write_log("Generating decoy sequences.", "fasta", project)
 
     if os.path.exists(os.path.join(settings.data_folder, project, "fasta", "temp")):
         shutil.rmtree(os.path.join(settings.data_folder, project, "fasta", "temp"))
@@ -622,7 +446,7 @@ def generate_decoy(project, fasta_file):
     os.makedirs(os.path.join(settings.data_folder, project, "fasta", "temp", "software"))
     
     if not os.path.exists(os.path.join(settings.install_folder, "software", "SearchGUI-%s" % settings.searchgui_ver, "SearchGUI-%s.jar" % settings.searchgui_ver)):
-        print("Missing SearchGUI install.")
+        write_log("Missing SearchGUI install.", "fasta", project)
         return False
         
     # copy searchgui into temp
@@ -639,20 +463,20 @@ def generate_decoy(project, fasta_file):
     fasta_file_concat = "%s_concatenated_target_decoy.fasta" % (fasta_file[0:-6])
 
     if os.path.exists(os.path.join(fasta_file_concat)):
-        print("Finished generating decoy sequences.")    
+        write_log("Finished generating decoy sequences.", "fasta", project)
         shutil.rmtree(os.path.join(settings.data_folder, project, "fasta", "temp"))
         return True
     else:
-        print("Failed to generate decoy sequences.")
+        write_log("Failed to generate decoy sequences.", "fasta", project)
         return False
 
-def download_profile_fasta():
+def download_profile_fasta(project):
     ''' downloads zip files '''
     # download ppmembership.txt
     if os.path.exists(os.path.join(settings.install_folder, "fasta", "PPMembership.txt")):
-        print("PPMembership.txt already exists. Remove to update.")
+        write_log("PPMembership.txt already exists. Remove to update.", "fasta", project)
     else:
-        print("Downloading PPMembership.txt from uniprot.")
+        write_log("Downloading PPMembership.txt from uniprot.", "fasta", project)
         # sometimes need to use different url
         #pp_membership_url = "https://proteininformationresource.org/rps/data/new/PPSeqCurrent/PPMembership.txt"
         pp_membership_url = "https://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/pan_proteomes/PPMembership.txt"
@@ -660,9 +484,9 @@ def download_profile_fasta():
             
     # download reference proteomes
     if os.path.exists(os.path.join(settings.install_folder, "fasta", "ref_proteomes_list.tsv")):
-        print("ref_proteomes_list.tsv already exists. Remove to update.")
+        write_log("ref_proteomes_list.tsv already exists. Remove to update.", "fasta", project)
     else:
-        print("Downloading list of reference proteomes from uniprot.")
+        write_log("Downloading list of reference proteomes from uniprot.", "fasta", project)
         #https://www.uniprot.org/proteomes/?query=taxonomy:%22Archaea%20[2157]%22%20OR%20taxonomy:%22Bacteria%20[2]%22&fil=reference%3Ayes&format=list
         # format=tab&columns=id,name
         #ref_proteome_url = "https://www.uniprot.org/proteomes/?query=taxonomy:%22Archaea%20[2157]%22%20OR%20taxonomy:%22Bacteria%20[2]%22&fil=reference%3Ayes&format=tab"
@@ -682,15 +506,14 @@ def download_profile_fasta():
             
     if not os.path.exists(os.path.join(settings.install_folder, "fasta","pan")):
         os.makedirs(os.path.join(settings.install_folder, "fasta","pan"))
-    
-    
-    print("Generating list of proteomes to download.")
+     
+    write_log("Generating list of proteomes to download.", "fasta", project)
 
     member_proteomes = []
     pan_proteomes = []
     ref_proteomes_dl = []
     
-    print("Including all pan proteomes.")
+    write_log("Including all pan proteomes.", "fasta", project)
     # download pan proteomes first as we include all of them
     with open(os.path.join(settings.install_folder, "fasta", "PPMembership.txt"), 'r') as file:
         i = 1
@@ -705,7 +528,7 @@ def download_profile_fasta():
             if row[0] not in pan_proteomes:
                 pan_proteomes.append(row[0])
     
-    print("Checking for missing reference proteomes.")
+    write_log("Checking for missing reference proteomes.", "fasta", project)
     ref_count = 0
     # so now we download the pan proteomes but we need to make sure the reference proteomes
     # on uniprot are included as sometimes they won't be a member of a pan proteome if they are
@@ -721,13 +544,13 @@ def download_profile_fasta():
                 member_proteomes.append(row[header.index('proteome id')])
                 ref_proteomes_dl.append(row[header.index('proteome id')])
     
-    print("%s reference proteomes were not a member of a pan-proteome." % ref_count)
+    write_log("%s reference proteomes were not a member of a pan-proteome." % (ref_count), "fasta", project)
     # human
     ref_proteomes_dl.append("UP000005640")
         
     # download the pan proteomes
     # https://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/pan_proteomes/UP000000212.fasta.gz
-    print("Downloading needed pan proteomes.")
+    write_log("Downloading needed pan proteomes.", "fasta", project)
     lenp = len(pan_proteomes)
     i = 1
     failed_proteomes = []
@@ -737,15 +560,15 @@ def download_profile_fasta():
             try:
                 # if it already exists, don't download it again because uniprot is slow
                 # but there could be a problem if the filesize is wrong so might have to check that down the road
-                if not os.path.exists(os.path.join(settings.install_folder, "fasta", "pan", "%s.fasta.gz" % proteome)):
-                    print("Downloading %s pan-proteome of %s. (%s)" % (i, lenp, proteome))
+                if not os.path.exists(os.path.join(settings.install_folder, "fasta", "pan", "%s.fasta.gz" % proteome)) and not os.path.exists(os.path.join(settings.install_folder, "fasta", "pan", "%s.fasta" % proteome)):
+                    write_log("Downloading %s pan-proteome of %s. (%s)" % (i, lenp, proteome), "fasta", project)
                     # fix until uniprot is fixed
                     #proteome_url = "https://proteininformationresource.org/rps/data/new/PPSeqCurrent/" + proteome + ".fasta.gz"
                     proteome_url = "https://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/pan_proteomes/" + proteome + ".fasta.gz"
                     urllib.request.urlretrieve(proteome_url, os.path.join(settings.install_folder, "fasta", "pan", "%s.fasta.gz" % proteome))
             except Exception as e:
                 if attempt == attempts - 1:
-                    print('Error downloading %s: ' % proteome, e)
+                    write_log('Error downloading %s.' % (proteome), "fasta", project)
                     failed_proteoms.append(proteome)
             else:
                 break
@@ -754,7 +577,7 @@ def download_profile_fasta():
     # now download the reference proteomes remaining
     # put this in another dir so that we know how to change the header later
     # https://www.uniprot.org/uniprot/?query=proteome:UP000027395&format=fasta&compress=yes
-    print("Downloading needed reference proteomes.")
+    write_log("Downloading needed reference proteomes.", "fasta", project)
     if not os.path.exists(os.path.join(settings.install_folder, "fasta", "ref")):
         os.makedirs(os.path.join(settings.install_folder, "fasta", "ref"))
     i = 1
@@ -763,48 +586,99 @@ def download_profile_fasta():
         attempts = 10
         for attempt in range(attempts):
             try:
-                if not os.path.exists(os.path.join(settings.install_folder, "fasta", "ref", "%s.fasta.gz" % proteome)):
-                    print("Downloading %s reference proteome of %s. (%s)" % (i, lenp, proteome))
+                if not os.path.exists(os.path.join(settings.install_folder, "fasta", "ref", "%s.fasta.gz" % proteome)) and not os.path.exists(os.path.join(settings.install_folder, "fasta", "ref", "%s.fasta" % proteome)):
+                    write_log("Downloading %s reference proteome of %s. (%s)" % (i, lenp, proteome), "fasta", project)
                     proteome_url = "https://rest.uniprot.org/uniprotkb/stream?compressed=true&format=fasta&query=proteome:" + proteome
                     #proteome_url = "https://www.uniprot.org/uniprot/?query=proteome:" + proteome + "&format=fasta&compress=yes"
                     urllib.request.urlretrieve(proteome_url, os.path.join(settings.install_folder, "fasta", "ref", "%s.fasta.gz" % proteome))
             except Exception as e:
                 if attempt == attempts - 1:
-                    print('Error downloading %s: ' % proteome, e)
+                    write_log('Error downloading %s.' % (proteome), "fasta", project)
                     failed_proteoms.append(proteome)
             else:
                 break
         i += 1
     
-    print("The following proteomes failed to download:")
-    print(*failed_proteomes, sep=',')
-    
+    write_log("The following proteomes failed to download: %s" % (failed_proteomes), "fasta", project)
 
-def create_full_fasta():
+# we can generate profile.fasta here too
+def create_full_fasta(project):
     ''' produces full.fasta with all sequences and no filtering'''
     seq_count = 0
 
-    print("Generating full.fasta. This can take a long time due to the need to reformat the reference proteomes to match the pan proteome format.")
+    write_log("Formatting FASTA files and filtering for high profile proteins.", "fasta", project)
+    write_log("This can take a long time due to the need to reformat the reference proteomes to match the pan proteome format.", "fasta", project)
+ 
+    if os.path.exists(os.path.join(settings.install_folder, "fasta", "human.fasta")):
+        os.remove(os.path.join(settings.install_folder, "fasta", "human.fasta"))
     
-    if os.path.exists("%s%sfull.fasta" % (os.path.join(settings.install_folder, "fasta"), os.sep)):
-        print("full.fasta exists already. Delete to recreate.")
+    if os.path.exists(os.path.join(settings.install_folder, "fasta", "ref", "temp.fasta")):
+        os.remove(os.path.join(settings.install_folder, "fasta", "ref", "temp.fasta"))
+    
+    if os.path.exists(os.path.join(settings.install_folder, "fasta", "profile.fasta")):
+        write_log("profile.fasta already exists. Delete to recreate.", "fasta", project)
         return
-   
-    if os.path.exists("%s%shuman.fasta" % (os.path.join(settings.install_folder, "fasta"), os.sep)):
-        os.remove("%s%shuman.fasta" % (os.path.join(settings.install_folder, "fasta"), os.sep))
-    
+        
+    accessions = set()
+
+    proteomes = {}
     # pan proteome files
-    print("Extracting proteins for pan proteomes.")
+    # unzip pan, look for high profile, then delete unzipped
+    write_log("Extracting pan proteomes and filtering for high profile.", "fasta", project)
+    p = re.compile("^(?P<start>(?P<db>[^\|]+)\|(?P<accession>[^\|]+)\|(?P<middle>.+)\s)(?P<OS>OS=.+)\s(?P<OX>OX=.+)\s(?P<UPId>UPId=[^\s]+)\s(?P<PPId>PPId=[^\s]+)$")
     for file in sorted(os.listdir(os.path.join(settings.install_folder, "fasta", "pan"))):
         if file.endswith(".fasta.gz"):
             filename = Path(file).stem
+            if os.path.exists(os.path.join(settings.install_folder, "fasta", "pan", filename)):
+                os.remove(os.path.join(settings.install_folder, "fasta", "pan", filename))
             with gzip.open(os.path.join(settings.install_folder, "fasta", "pan", file), "rb") as f_in:
-                with open("%s%sfull.fasta" % (os.path.join(settings.install_folder, "fasta"), os.sep), "ab") as f_out:
+                with open(os.path.join(settings.install_folder, "fasta", "pan", filename), "ab") as f_out:
                     shutil.copyfileobj(f_in, f_out)
+                    
+            for record in SeqIO.parse(os.path.join(settings.install_folder, "fasta", "pan", filename), "fasta"):           
+                m1 = p.search(record.description)         
+                if not m1:
+                    continue
+                    
+                accession = m1.group('accession')
+                ppid = m1.group('PPId').replace('PPId=','')
+                species = m1.group('OS').replace('OS=','')
+                
+                if accession in accessions:
+                    continue
+                accessions.add(accession)
 
-    # reference proteomes do not include the proteome in the header, so we 
-    #  need to add it
-    print("Extracting proteins for reference proteomes (this may take a while).")
+                if ppid not in proteomes:
+                    proteomes[ppid] = {'OS':species, 'Full Size':1, 'Profile Size':0}
+                else:
+                    proteomes[ppid]['Full Size'] += 1
+
+                with open(os.path.join(settings.install_folder, "fasta", "pan", "temp.fasta"), "a") as fasta_out:
+                    SeqIO.write(record, fasta_out, "fasta")
+                        
+                m2 = re.search("ribosomal|elongation|chaperon", record.description)              
+                if not m2:
+                    continue
+                    
+                proteomes[ppid]['Profile Size'] += 1
+                
+                with open(os.path.join(settings.install_folder, "fasta", "profile.fasta"), "a") as fasta_out:
+                    SeqIO.write(record, fasta_out, "fasta")   
+                    
+            if os.path.exists(os.path.join(settings.install_folder, "fasta", "pan", filename)):
+                os.remove(os.path.join(settings.install_folder, "fasta", "pan", filename))
+
+            with open(os.path.join(settings.install_folder, "fasta", "pan", "temp.fasta"), "rb") as f_in:
+                with gzip.open(os.path.join(settings.install_folder, "fasta", "pan", "%s" % file), "wb") as f_out:
+                    shutil.copyfileobj(f_in, f_out) 
+            
+            if os.path.exists(os.path.join(settings.install_folder, "fasta", "pan", "temp.fasta")):
+                os.remove(os.path.join(settings.install_folder, "fasta", "pan", "temp.fasta"))
+                
+    # unzip ref, reformat header, look for high profile
+    # once done, zip them all
+    write_log("Extracting reference proteomes, reformatting, and filtering for high profile.", "fasta", project)
+    p = re.compile("^(?P<start>(?P<db>[^\|]+)\|(?P<accession>[^\|]+)\|(?P<middle>.+)\s)(?P<OS>OS=.+)\s(?P<OX>OX=.+)")
     for file in sorted(os.listdir(os.path.join(settings.install_folder, "fasta", "ref"))):
         # exclude human
         if file.endswith(".fasta.gz"):
@@ -814,92 +688,59 @@ def create_full_fasta():
             with gzip.open(os.path.join(settings.install_folder, "fasta", "ref", file), "rb") as f_in:
                 with open(os.path.join(settings.install_folder, "fasta", "ref", filename), "ab") as f_out:
                     shutil.copyfileobj(f_in, f_out)
-            p = re.compile("^(?P<start>(?P<db>[^\|]+)\|(?P<accession>[^\|]+)\|(?P<middle>.+)\s)(?P<OS>OS=.+)\s(?P<OX>OX=.+)")                    
+                
             for record in SeqIO.parse(os.path.join(settings.install_folder, "fasta", "ref", filename), "fasta"):
                 m1 = p.search(record.description)
-                if m1:
-                    tax = m1.group('OS')
-                    description = m1.group('start') + " " + tax + " " + m1.group('OX') + " " + "UPId=" + Path(filename).stem + " " + "PPId=" + Path(filename).stem
-                    # now write the new fasta header + sequence to a file
-                    record.description = description
-                    if file != "UP000005640.fasta.gz":
-                        with open("%s%sfull.fasta" % (os.path.join(settings.install_folder, "fasta"), os.sep), "a") as fasta_out:
-                            SeqIO.write(record, fasta_out, "fasta")
-                        seq_count += 1
-                    # write human to a different file so we can access it later
-                    else:
-                        with open("%s%shuman.fasta" % (os.path.join(settings.install_folder, "fasta"), os.sep), "a") as fasta_out:
-                            SeqIO.write(record, fasta_out, "fasta")
-                else:
-                    print("no regexp match for: %s" % record)
-                    
-            if os.path.exists("%s" % (os.path.join(settings.install_folder, "fasta", "ref", filename))):
-                os.remove("%s" % (os.path.join(settings.install_folder, "fasta", "ref", filename)))
+                if not m1:
+                    continue
 
-    print("Finished generating the full FASTA file.")
+                accession = m1.group('accession')
+                ppid = Path(filename).stem
+                species = m1.group('OS').replace('OS=','')                    
 
-def filter_high_profile():
-    '''filters high profile out of the full fasta'''
-    ''' we also use this to build a list of proteomes and names'''
-  
-    print("Filtering HAPs to generate profile FASTA (this may take a while).")
-    if os.path.exists(os.path.join(settings.install_folder, "fasta", "profile.fasta")):
-        os.remove(os.path.join(settings.install_folder, "fasta", "profile.fasta"))
-                
-    # need to keep track of accessions. if it exists already, just skip it.
-    accessions = set()
-    seq_count = 0
-    # ppid: name
-    rows_list = []
-    proteomes = {}
-    profile_proteomes = {}
-    for record in SeqIO.parse("%s%sfull.fasta" % (os.path.join(settings.install_folder, "fasta"), os.sep), "fasta"):
-        dict1 = {}
-        p = re.compile("^(?P<start>(?P<db>[^\|]+)\|(?P<accession>[^\|]+)\|(?P<middle>.+)\s)(?P<OS>OS=.+)\s(?P<OX>OX=.+)\s(?P<UPId>UPId=[^\s]+)\s(?P<PPId>PPId=[^\s]+)$")
-        m = p.search(record.description)
-        if m:
-            
-            if str(m.group('PPId')).replace('PPId=','') not in proteomes:
-                proteomes[str(m.group('PPId')).replace('PPId=','')] = 1
-                #proteomes.append(m.group('PPId'))
-                dict1.update({'PPID': m.group('PPId').replace('PPId=', ''), 'OS': m.group('OS').replace('OS=', '')})
-                rows_list.append(dict1)
-            else:
-                proteomes[str(m.group('PPId')).replace('PPId=','')] += 1
-            accession = m.group('accession')
-
-            tax = m.group('OS')
-            description = m.group('start') + " " + tax + " " + m.group('OX') + " " + m.group('UPId')  + " " + m.group('PPId')
-            m1 = re.search("ribosomal|elongation|chaperon", record.description)
-            if m1:
+                description = m1.group('start') + " " + species + " " + m1.group('OX') + " " + "UPId=" + Path(filename).stem + " " + "PPId=" + Path(filename).stem
                 # now write the new fasta header + sequence to a file
-                if str(m.group('PPId')).replace('PPId=','') not in profile_proteomes:
-                    profile_proteomes[str(m.group('PPId')).replace('PPId=','')] = 1
-                    #proteomes.append(m.group('PPId'))
-                else:
-                    profile_proteomes[str(m.group('PPId')).replace('PPId=','')] += 1
-                
                 record.description = description
-                if accession not in accessions:
-                    accessions.add(accession)
-                    with open("%s%s%s.fasta" % (os.path.join(settings.install_folder, "fasta"), os.sep, "profile"), "a") as fasta_out:
+                    
+                if file != "UP000005640.fasta.gz":
+                    if accession in accessions:
+                        continue
+                        
+                    accessions.add(accession)      
+                    
+                    if ppid not in proteomes:
+                        proteomes[ppid] = {'OS':species, 'Full Size':1, 'Profile Size':0}
+                    else:
+                        proteomes[ppid]['Full Size'] += 1
+
+                    with open(os.path.join(settings.install_folder, "fasta", "ref", "temp.fasta"), "a") as fasta_out:
                         SeqIO.write(record, fasta_out, "fasta")
-                    seq_count += 1
+                        
+                    m2 = re.search("ribosomal|elongation|chaperon", record.description)
+                    if not m2:
+                        continue
+                        
+                    proteomes[ppid]['Profile Size'] += 1
+                    
+                    with open(os.path.join(settings.install_folder, "fasta", "profile.fasta"), "a") as fasta_out:
+                        SeqIO.write(record, fasta_out, "fasta")
+                                            
+                # write human to a different file so we can access it easily later
                 else:
-                    print("Duplicate accession: %s" % accession)
-        else:
-            print("no regexp match for: %s" % record)
+                    with open(os.path.join(settings.install_folder, "fasta", "human.fasta"), "a") as fasta_out:
+                        SeqIO.write(record, fasta_out, "fasta")
+                       
+            if os.path.exists(os.path.join(settings.install_folder, "fasta", "ref", filename)):
+                os.remove(os.path.join(settings.install_folder, "fasta", "ref", filename))
+            
+            if os.path.exists(os.path.join(settings.install_folder, "fasta", "ref", "temp.fasta")):
+                with open(os.path.join(settings.install_folder, "fasta", "ref", "temp.fasta"), "rb") as f_in:
+                    with gzip.open(os.path.join(settings.install_folder, "fasta", "ref", "%s" % file), "wb") as f_out:
+                        shutil.copyfileobj(f_in, f_out)            
+ 
+                os.remove(os.path.join(settings.install_folder, "fasta", "ref", "temp.fasta"))
+                
+    proteome_df = pd.DataFrame.from_dict(proteomes, orient='index').reset_index(names=['PPID'])
+    proteome_df.to_csv(os.path.join(settings.install_folder, "fasta", "proteomes.tsv"), sep='\t', index=False)
     
-    if os.path.exists(os.path.join(settings.install_folder, "fasta", "proteomes.tsv")):
-        os.remove(os.path.join(settings.install_folder, "fasta", "proteomes.tsv"))
-     
-    proteomes_out = pd.DataFrame(rows_list)
-    proteomes_out.set_index('PPID', inplace=True)
-    proteomes_count = pd.DataFrame.from_dict(proteomes, orient='index', columns=['full size'])
-    profile_proteomes_count = pd.DataFrame.from_dict(profile_proteomes, orient='index', columns=['profile size'])
-    proteomes_out = proteomes_out.join(proteomes_count)
-    proteomes_out = proteomes_out.join(profile_proteomes_count)
-    proteomes_out = proteomes_out.reset_index()
-    proteomes_out.to_csv(os.path.join(settings.install_folder, "fasta", "proteomes.tsv"), sep='\t', index=False)
-        
-    print("Finished generating profile FASTA with %s sequences." % seq_count)
+    write_log("Finished generating profile.fasta", "fasta", project)
