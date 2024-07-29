@@ -678,7 +678,7 @@ def create_full_fasta(project):
     # unzip ref, reformat header, look for high profile
     # once done, zip them all
     write_log("Extracting reference proteomes, reformatting, and filtering for high profile.", "fasta", project)
-    p = re.compile("^(?P<start>(?P<db>[^\|]+)\|(?P<accession>[^\|]+)\|(?P<middle>.+)\s)(?P<OS>OS=.+)\s(?P<OX>OX=.+)")
+    p = re.compile("^(?P<start>(?P<db>[^\|]+)\|(?P<accession>[^\|]+)\|(?P<middle>.+))\s(?P<OS>OS=.+)\s(?P<OX>OX=.+)")
     for file in sorted(os.listdir(os.path.join(settings.install_folder, "fasta", "ref"))):
         # exclude human
         if file.endswith(".fasta.gz"):
@@ -698,7 +698,13 @@ def create_full_fasta(project):
                 ppid = Path(filename).stem
                 species = m1.group('OS').replace('OS=','')                    
 
-                description = m1.group('start') + " " + species + " " + m1.group('OX') + " " + "UPId=" + Path(filename).stem + " " + "PPId=" + Path(filename).stem
+                # account for the case where we already ran this on the reference proteomes before
+                # we don't want to add part again because it'll already be in m1.group('OX')
+                if 'UPId' in record.description or 'PPId' in m1.group('OX'):
+                    description = m1.group('start') + " " + m1.group('OS') + " " + m1.group('OX')
+                else:
+                    description = m1.group('start') + " " + m1.group('OS') + " " + m1.group('OX') + " " + "UPId=" + Path(filename).stem + " " + "PPId=" + Path(filename).stem
+                    
                 # now write the new fasta header + sequence to a file
                 record.description = description
                     
