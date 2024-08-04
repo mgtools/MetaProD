@@ -5,9 +5,9 @@
   "fields": {
     "install_folder": "/metaprod/install",
     "memory": "48G",
-    "searchgui_ver": "4.3.1",
-    "peptideshaker_ver": "3.0.1",
-    "reporter_ver": "0.10.4",
+    "searchgui_ver": "4.3.9",
+    "peptideshaker_ver": "3.0.8",
+    "reporter_ver": "0.12.6",
     "mzmine_ver": "3.3.0",
     "threads": -1,
     "debug_mode": true,
