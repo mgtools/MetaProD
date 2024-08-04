@@ -185,9 +185,12 @@ def read_results(queue_id, fasta_type):
                     ratio = None
                 psmratio = PsmRatio(psm=psm, ratio=ratio, label=headers2[i])
                 psmratio_list.append(psmratio)
+                if len(psmratio_list) > 5000:
+                    PsmRatio.objects.bulk_create(psmratio_list)
+                    psmratio_list = []                
                 #psmratio.save()
     
-        PsmRatio.objects.bulk_create(psmratio_list, 5000)
+        PsmRatio.objects.bulk_create(psmratio_list)
         psmratio_list = []
     
     write_debug("Determing peptides from PSM list.", job, project)
