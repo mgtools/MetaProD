@@ -9,11 +9,11 @@ from django.core.exceptions import ObjectDoesNotExist
 
 from projects.models import Queue, Project, Setting, SearchSetting
 from results.models import SpeciesSummary, SpeciesFileSummary
-from .run_command import write_debug, settings
-from .generate_fasta import generate_fasta
-from .run_queue import cleanup
-from .process_results import calculate_nsaf, calculate_species_summary
-from .process_results import calculate_species_file_summary
+from scripts.run_command import write_debug, settings
+from scripts.generate_fasta import generate_fasta
+from scripts.run_queue import cleanup
+from scripts.process_results import calculate_nsaf, calculate_species_summary
+from scripts.process_results import calculate_species_file_summary
 
 # fasta flag species to download/generate fasta otherwise
 # it will use the existing fasta
@@ -151,6 +151,24 @@ def generate_file_queue(project, jobs):
             q.status = Queue.Status.SEARCHGUI_PROT
             q.save()
 
+            # remove some files to save space because we won't use them anymore
+            # a consequence is that we would need to start from FILE_ADDED to generate them again but we will still have the
+            # peptideshaker export
+            if os.path.exists(os.path.join(settings.data_folder, q.project.name, "out", q.filename, "profile", "%s.psdb" % q.filename)):
+                os.remove(os.path.join(settings.data_folder, q.project.name, "out", q.filename, "profile", "%s.psdb" % q.filename))
+                
+            if os.path.exists(os.path.join(settings.data_folder, q.project.name, "out", q.filename, "profile", "%s_reporter.psdb" % q.filename)):
+                os.remove(os.path.join(settings.data_folder, q.project.name, "out", q.filename, "profile", "%s_reporter.psdb" % q.filename))
+                
+            if os.path.exists(os.path.join(settings.data_folder, q.project.name, "out", q.filename, "profile", "searchgui_out.zip")):
+                os.remove(os.path.join(settings.data_folder, q.project.name, "out", q.filename, "profile", "searchgui_out.zip"))                
+
+            if os.path.exists(os.path.join(settings.data_folder, q.project.name, "out", q.filename, "profile", "%s_profile.par" % q.project.name)):
+                os.remove(os.path.join(settings.data_folder, q.project.name, "out", q.filename, "profile", "%s_profile.par" % q.project.name)) 
+
+            if os.path.exists(os.path.join(settings.data_folder, q.project.name, "out", q.filename, "profile", "%s_mzmine_tpd.csv" % q.filename)):
+                os.remove(os.path.join(settings.data_folder, q.project.name, "out", q.filename, "profile", "%s_mzmine_tpd.csv" % q.filename)) 
+                
         cleanup(project)
         
         print("Finished update_queue proteome.")
