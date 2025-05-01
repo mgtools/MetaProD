@@ -123,7 +123,7 @@ class FastaProtein(models.Model):
 class PsmRatio(models.Model):
     psm = models.ForeignKey('results.Psm', on_delete=models.CASCADE)
     # the number
-    ratio = models.DecimalField(max_digits=20, decimal_places=15, null=True)
+    ratio = models.DecimalField(max_digits=25, decimal_places=15, null=True)
     # the sample ID, e.g. TMT-127C
     label = models.CharField(max_length=255)
  
