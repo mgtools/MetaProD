@@ -47,21 +47,20 @@ def run_queue(project, job):
     write_debug("Starting queue processing for project %s and job %s." % 
         (project, job), job, project
     )
-    rerun = 1
-    while rerun == 1:
+    
+    while True:
         queue = (Queue.objects.filter(project__name=project, job=job)
                               .exclude(error__gte=(1 + settings.max_retries))
                               .exclude(status=Queue.Status.FINISHED_PROF)
                               .exclude(status=Queue.Status.FINISHED_PROT)
                               .exclude(status=Queue.Status.FILE_FINISHED)
                               .exclude(skip=True)
-                              .order_by('-status')
+                              .order_by_status().first()
                 )
         if not queue:
             write_debug("No remaining entries left in the queue for project %s and job %s." % (project, job), job, project)
             return
-
-        queue = queue[:1][0]
+            
         filename = queue.filename
         project = queue.project.name
         install_folder = settings.install_folder

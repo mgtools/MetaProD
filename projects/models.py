@@ -2,16 +2,48 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.contrib import messages
 from django.core.validators import MaxValueValidator, MinValueValidator
+from django.db.models import Case, When, Value
 
+class QueueQuerySet(models.QuerySet):
+    def order_by_status(self):
+        return self.alias(status_order=(
+            Case(
+                When(status=Queue.Status.FILE_ADDED, then=Value(1)),
+                When(status=Queue.Status.THERMO, then=Value(2)),
+                When(status=Queue.Status.SEARCHGUI_PROF, then=Value(3)),
+                When(status=Queue.Status.PEPTIDESHAKER_PROF, then=Value(4)),
+                When(status=Queue.Status.REPORTER_PROF, then=Value(5)),
+                When(status=Queue.Status.MZMINE_PROF, then=Value(6)),
+                When(status=Queue.Status.READ_RESULTS_PROF, then=Value(7)),
+                When(status=Queue.Status.PROCESS_RESULTS_PROF, then=Value(8)),
+                When(status=Queue.Status.FINISHED_PROF, then=Value(9)),
+                When(status=Queue.Status.SEARCHGUI_PROT, then=Value(10)),
+                When(status=Queue.Status.PEPTIDESHAKER_PROT, then=Value(11)),
+                When(status=Queue.Status.REPORTER_PROT, then=Value(12)),
+                When(status=Queue.Status.MZMINE_PROT, then=Value(13)),
+                When(status=Queue.Status.READ_RESULTS_PROT, then=Value(14)),
+                When(status=Queue.Status.PROCESS_RESULTS_PROT, then=Value(15)),
+                When(status=Queue.Status.FINISHED_PROT, then=Value(16)),
+                When(status=Queue.Status.FILE_FINISHED, then=Value(17))
+                )
+            )).order_by('-status')
+            
 class QueueManager(models.Manager):
     def get_by_natural_key(self, project, filename):
         return self.get(project=project, filename=filename)
+    
+    def get_queryset(self):
+        return QueueQuerySet(self.model, using=self._db)
         
+    def order_by_status(self):
+        return self.get_queryset().order_by_status()
+              
 # queue of files to run
 class Queue(models.Model):
 
     objects = QueueManager()
     
+    # if we add to here, update order_by_status above
     class Status(models.TextChoices):
         FILE_ADDED = 'FILE_ADDED', _('File added')
         THERMO = 'THERMO', _('Ready for thermorawfileparser')
