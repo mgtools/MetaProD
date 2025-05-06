@@ -50,7 +50,7 @@ def process_results(queue_id, fasta_type):
     job = queue.job
     filename = queue.filename
 
-    delete = Protein.objects.filter(queue=queue).filter(type=fasta_type).delete()
+    delete = Protein.objects.filter(queue=queue).filter(fasta_type=fasta_type).delete()
     
     try:
         searchsetting=SearchSetting.objects.get(project=project)
@@ -87,9 +87,9 @@ def process_results(queue_id, fasta_type):
     end = time.time()
     runtime = end - start
     runtimex = RunTime.objects.get(queue=queue)
-    if type == 'profile':
+    if fasta_type == 'profile':
         runtimex.process_results_profile = runtime
-    elif type == 'proteome':
+    elif fasta_type == 'proteome':
         runtimex.process_results_proteome = runtime
     runtimex.save()
     
@@ -114,7 +114,7 @@ def calculate_nsaf(project, fasta_type):
     # now that safs are done, need to calculate nsaf
     for entryq in queryq:
         # here we select collect the sum of all the saf values
-        query = (Protein.objects.filter(type=fasta_type)
+        query = (Protein.objects.filter(fasta_type=fasta_type)
                                 .filter(queue=entryq)
                                 .aggregate(sum=Sum('saf'))
                 )
@@ -125,7 +125,7 @@ def calculate_nsaf(project, fasta_type):
             print("Warning: No results for queue_id: %s" % entryq.id)
             saf_sum = 1
     
-        query = (Protein.objects.filter(type=fasta_type)
+        query = (Protein.objects.filter(fasta_type=fasta_type)
                                 .filter(queue=entryq)
                 )
 
@@ -144,7 +144,7 @@ def calculate_species_summary(project, fasta_type):
                             
     # start with the protein info
     query = (Protein.objects.filter(queue__project__name=project)
-                            .filter(type=fasta_type)
+                            .filter(fasta_type=fasta_type)
                             .exclude(queue__skip=True)
                             .exclude(queue__error__gte=(1 + settings.max_retries))
                             .values('fp__ppid__proteome')
@@ -159,7 +159,7 @@ def calculate_species_summary(project, fasta_type):
         project = Project.objects.get(name=project)
         proteome = Proteome.objects.get(proteome=entry['fp__ppid__proteome'])
         species = SpeciesSummary(project=project,
-                                 type=fasta_type,
+                                 fasta_type=fasta_type,
                                  ppid=proteome,
                                  nsaf = Decimal(entry['nsaf']),
                                  val_num_protein=entry['total_pro'],
@@ -172,11 +172,11 @@ def calculate_species_summary(project, fasta_type):
 def calculate_species_file_summary(q_id, fasta_type):
     queue = Queue.objects.get(id=q_id)
     delete = SpeciesFileSummary.objects.filter(queue=queue,
-                                               type=fasta_type).delete()
+                                               fasta_type=fasta_type).delete()
                                                
     # start with the protein info
     query = (Protein.objects.filter(queue=queue)
-                            .filter(type=fasta_type)
+                            .filter(fasta_type=fasta_type)
                             .values('fp__ppid__proteome')
                             .annotate(total_psm=Sum('val_num_psm'), 
                                       total_pep=Sum('val_num_peptide'), 
@@ -188,7 +188,7 @@ def calculate_species_file_summary(q_id, fasta_type):
     for entry in query:
         proteome = Proteome.objects.get(proteome=entry['fp__ppid__proteome'])
         species = SpeciesFileSummary(queue=queue,
-                                     type=fasta_type,
+                                     fasta_type=fasta_type,
                                      ppid=proteome,
                                      nsaf = Decimal(entry['nsaf']),
                                      val_num_protein=entry['total_pro'],
@@ -212,7 +212,7 @@ def infer_proteins(queue, fasta_type):
         return False
         
     # select the peptides for the file
-    query = (Peptide.objects.filter(queue=queue, type=fasta_type))
+    query = (Peptide.objects.filter(queue=queue, fasta_type=fasta_type))
 
     # if we have no results, we can't profile, so we need to skip the
     #  file if the profile method is file 
@@ -288,7 +288,7 @@ def infer_proteins(queue, fasta_type):
                       'accession': top_protein,
                       'val_num_psm':entry.val_num_psm,
                       'validation': entry.validation,
-                      'type':entry.type,
+                      'fasta_type':entry.fasta_type,
                       'peptide_id':entry.id,
                       'peak_area':entry.peak_area,
                       'peak_area_psm':entry.peak_area_psm})
@@ -337,7 +337,7 @@ def infer_proteins(queue, fasta_type):
                           val_num_psm=float(row['val_num_psm']),
                           val_num_peptide=row['val_num_peptide'],
                           saf=saf,
-                          type=fasta_type,
+                          fasta_type=fasta_type,
                           peak_area=peak_area,
                           peak_area_psm=peak_area_psm)
         proteins_to_add.append(protein)
@@ -355,7 +355,7 @@ def infer_proteins(queue, fasta_type):
         peptide = Peptide.objects.get(id=row['peptide_id'])
         fp = FastaProtein.objects.get(accession=row['accession'])
         protein = Protein.objects.get(fp=fp,
-                                      type=fasta_type,
+                                      fasta_type=fasta_type,
                                       queue=queue)
         peptide.protein = protein
         peptide.save()        
@@ -385,7 +385,7 @@ def infer_proteins_new(queue, fasta_type):
         return(counts)
         
     # select the peptides for the file
-    query = (Peptide.objects.filter(queue=queue, type=fasta_type))
+    query = (Peptide.objects.filter(queue=queue, fasta_type=fasta_type))
 
     # if we have no results, we can't profile, so we need to skip the
     #  file if the profile method is file 
@@ -567,7 +567,7 @@ def infer_proteins_new(queue, fasta_type):
                           val_num_psm=float(row['val_num_psm']),
                           val_num_peptide=row['val_num_peptide'],
                           saf=saf,
-                          type=fasta_type,
+                          fasta_type=fasta_type,
                           peak_area=peak_area,
                           peak_area_psm=peak_area_psm)
         proteins_to_add.append(protein)
@@ -585,7 +585,7 @@ def infer_proteins_new(queue, fasta_type):
         peptide = Peptide.objects.get(id=row['id'])
         fp = FastaProtein.objects.get(accession=row['accession'])
         protein = Protein.objects.get(fp=fp,
-                                      type=fasta_type,
+                                      fasta_type=fasta_type,
                                       queue=queue)
         peptide.protein = protein
         peptide.save()        

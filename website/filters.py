@@ -11,7 +11,7 @@ from results.models import (
     DiffProtein,
 )
 
-TYPE_CHOICES = (
+STEP_CHOICES = (
     ('profile', 'Profile'),
     ('proteome', 'Proteome'),
 )
@@ -47,13 +47,13 @@ class ProteinListFilter(django_filters.FilterSet):
     file = django_filters.ModelChoiceFilter(field_name='queue__filename', 
                                             queryset=get_files_protein,
                                             label='Filename')
-    type = django_filters.AllValuesFilter(lookup_expr='iexact')
+    fasta_type = django_filters.AllValuesFilter(lookup_expr='iexact')
     tag = django_filters.ModelChoiceFilter(field_name='queue__tag__name', 
                                            queryset=get_tags_protein,
                                            label='Tag')
     class Meta:
         model = Protein
-        fields = ['project', 'gene', 'proteome', 'organism', 'file', 'type']
+        fields = ['project', 'gene', 'proteome', 'organism', 'file', 'fasta_type']
 
 class DiffProteinListFilter(django_filters.FilterSet):
     project = django_filters.CharFilter(field_name='project__name')
@@ -75,13 +75,13 @@ class PeptideListFilter(django_filters.FilterSet):
     file = django_filters.ModelChoiceFilter(field_name='queue__filename',
                                             queryset=get_files_protein,
                                             label='Filename')
-    type = django_filters.AllValuesFilter(lookup_expr='iexact')
+    fasta_type = django_filters.AllValuesFilter(lookup_expr='iexact')
     tag = django_filters.ModelChoiceFilter(field_name='queue__tag__name', 
                                            queryset=get_tags_protein,
                                            label='Tag')
     class Meta:
         model = Peptide
-        fields = ['project', 'protein__id','sequence','type', 'organism', 'file']
+        fields = ['project', 'protein__id','sequence','fasta_type', 'organism', 'file']
         
 class PsmListFilter(django_filters.FilterSet):
     accession = django_filters.CharFilter(field_name='peptide__protein__fp__accession')
@@ -91,13 +91,13 @@ class PsmListFilter(django_filters.FilterSet):
     file = django_filters.ModelChoiceFilter(field_name='queue__filename',
                                             queryset=get_files_protein,
                                             label='Filename')
-    type = django_filters.AllValuesFilter(lookup_expr='iexact')
+    fasta_type = django_filters.AllValuesFilter(lookup_expr='iexact')
     tag = django_filters.ModelChoiceFilter(field_name='queue__tag__name', 
                                            queryset=get_tags_protein,
                                            label='Tag')
     class Meta:
         model = Psm
-        fields = ['project', 'sequence', 'mod_sequence', 'type', 'accession', 'organism', 'proteome', 'file']
+        fields = ['project', 'sequence', 'mod_sequence', 'fasta_type', 'accession', 'organism', 'proteome', 'file']
         
 class FileListFilter(django_filters.FilterSet):
     project = django_filters.CharFilter(field_name='project__name')
@@ -107,15 +107,15 @@ class FileListFilter(django_filters.FilterSet):
 
 class SpeciesListFilter(django_filters.FilterSet):
     project = django_filters.CharFilter(field_name='project__name')
-    type = django_filters.AllValuesFilter(lookup_expr='iexact')
+    fasta_type = django_filters.AllValuesFilter(lookup_expr='iexact')
     class Meta:
         model = SpeciesSummary
-        fields = ['project', 'type']
+        fields = ['project', 'fasta_type']
 
 class FileSummaryFilter(django_filters.FilterSet):    
     project = django_filters.CharFilter(field_name='queue__project__name')
     file = django_filters.ModelChoiceFilter(field_name='queue__filename', queryset=get_files_protein)
-    type = django_filters.AllValuesFilter(lookup_expr='iexact')
+    fasta_type = django_filters.AllValuesFilter(lookup_expr='iexact')
     class Meta:
         model = SpeciesFileSummary
-        fields = ['project', 'file', 'type']
+        fields = ['project', 'file', 'fasta_type']

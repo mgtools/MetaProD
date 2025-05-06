@@ -45,10 +45,10 @@
 <tbody>
 {% for key, value in custom_dict.items %}
 <tr>
-<td><a href="{% spurl base="{\% url 'file_summary' %\}" add_query="project={{ value.project }}" add_query="file={{ key }}" add_query="type=custom" %}">{{ value.filename }}</a></td>
-<td><a href="{% spurl base="{\% url 'protein_list' %\}" add_query="project={{ value.project }}" add_query="file={{ key }}" add_query="type=custom" add_query="sort=-nsaf" %}">{{ value.protein }}</a></td>
-<td><a href="{% spurl base="{\% url 'peptide_list' %\}" add_query="project={{ value.project }}" add_query="file={{ key }}" add_query="type=custom" add_query="sort=-val_num_psm" %}">{{ value.peptide }}</a></td>
-<td><a href="{% spurl base="{\% url 'psm_list' %\}" add_query="project={{ value.project }}" add_query="file={{ key }}" add_query="type=custom" add_query="sort=peptide__protein__fp__accession" %}">{{ value.psm }}</a></td>
+<td><a href="{% spurl base="{\% url 'file_summary' %\}" add_query="project={{ value.project }}" add_query="file={{ key }}" add_query="fasta_type=custom" %}">{{ value.filename }}</a></td>
+<td><a href="{% spurl base="{\% url 'protein_list' %\}" add_query="project={{ value.project }}" add_query="file={{ key }}" add_query="fasta_type=custom" add_query="sort=-nsaf" %}">{{ value.protein }}</a></td>
+<td><a href="{% spurl base="{\% url 'peptide_list' %\}" add_query="project={{ value.project }}" add_query="file={{ key }}" add_query="fasta_type=custom" add_query="sort=-val_num_psm" %}">{{ value.peptide }}</a></td>
+<td><a href="{% spurl base="{\% url 'psm_list' %\}" add_query="project={{ value.project }}" add_query="file={{ key }}" add_query="fasta_type=custom" add_query="sort=peptide__protein__fp__accession" %}">{{ value.psm }}</a></td>
 </tr>
 {% endfor %}
 <tr>
@@ -75,10 +75,10 @@
 <tbody>
 {% for key, value in profile_dict.items %}
 <tr>
-<td><a href="{% spurl base="{\% url 'file_summary' %\}" add_query="project={{ value.project }}" add_query="file={{ key }}" add_query="type=profile" %}">{{ value.filename }}</a></td>
-<td><a href="{% spurl base="{\% url 'protein_list' %\}" add_query="project={{ value.project }}" add_query="file={{ key }}" add_query="type=profile" add_query="sort=-nsaf" %}">{{ value.protein }}</a></td>
-<td><a href="{% spurl base="{\% url 'peptide_list' %\}" add_query="project={{ value.project }}" add_query="file={{ key }}" add_query="type=profile" add_query="sort=-val_num_psm" %}">{{ value.peptide }}</a></td>
-<td><a href="{% spurl base="{\% url 'psm_list' %\}" add_query="project={{ value.project }}" add_query="file={{ key }}" add_query="type=profile" add_query="sort=peptide__protein__fp__accession" %}">{{ value.psm }}</a></td>
+<td><a href="{% spurl base="{\% url 'file_summary' %\}" add_query="project={{ value.project }}" add_query="file={{ key }}" add_query="fasta_type=profile" %}">{{ value.filename }}</a></td>
+<td><a href="{% spurl base="{\% url 'protein_list' %\}" add_query="project={{ value.project }}" add_query="file={{ key }}" add_query="fasta_type=profile" add_query="sort=-nsaf" %}">{{ value.protein }}</a></td>
+<td><a href="{% spurl base="{\% url 'peptide_list' %\}" add_query="project={{ value.project }}" add_query="file={{ key }}" add_query="fasta_type=profile" add_query="sort=-val_num_psm" %}">{{ value.peptide }}</a></td>
+<td><a href="{% spurl base="{\% url 'psm_list' %\}" add_query="project={{ value.project }}" add_query="file={{ key }}" add_query="fasta_type=profile" add_query="sort=peptide__protein__fp__accession" %}">{{ value.psm }}</a></td>
 </tr>
 {% endfor %}
 <tr>
@@ -104,10 +104,10 @@
 <tbody>
 {% for key, value in proteome_dict.items %}
 <tr>
-<td><a href="{% spurl base="{\% url 'file_summary' %\}" add_query="project={{ value.project }}" add_query="file={{ key }}" add_query="type=proteome" %}">{{ value.filename }}</a></td>
-<td><a href="{% spurl base="{\% url 'protein_list' %\}" add_query="project={{ value.project }}" add_query="file={{ key }}" add_query="type=proteome" add_query="sort=-nsaf" %}">{{ value.protein }}</a></td>
-<td><a href="{% spurl base="{\% url 'peptide_list' %\}" add_query="project={{ value.project }}" add_query="file={{ key }}" add_query="type=proteome" add_query="sort=-val_num_psm" %}">{{ value.peptide }}</a></td>
-<td><a href="{% spurl base="{\% url 'psm_list' %\}" add_query="project={{ value.project }}" add_query="file={{ key }}" add_query="type=proteome" add_query="sort=peptide__protein__fp__accession" %}">{{ value.psm }}</a></td>
+<td><a href="{% spurl base="{\% url 'file_summary' %\}" add_query="project={{ value.project }}" add_query="file={{ key }}" add_query="fasta_type=proteome" %}">{{ value.filename }}</a></td>
+<td><a href="{% spurl base="{\% url 'protein_list' %\}" add_query="project={{ value.project }}" add_query="file={{ key }}" add_query="fasta_type=proteome" add_query="sort=-nsaf" %}">{{ value.protein }}</a></td>
+<td><a href="{% spurl base="{\% url 'peptide_list' %\}" add_query="project={{ value.project }}" add_query="file={{ key }}" add_query="fasta_type=proteome" add_query="sort=-val_num_psm" %}">{{ value.peptide }}</a></td>
+<td><a href="{% spurl base="{\% url 'psm_list' %\}" add_query="project={{ value.project }}" add_query="file={{ key }}" add_query="fasta_type=proteome" add_query="sort=peptide__protein__fp__accession" %}">{{ value.psm }}</a></td>
 </tr>
 {% endfor %}
 <tr>

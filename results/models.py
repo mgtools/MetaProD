@@ -1,13 +1,13 @@
 from django.db import models
 
-TYPE_CHOICES = (
+STEP_CHOICES = (
     ('Profile', 'Profile'),
     ('Proteome', 'Proteome'),
 )
 
 class ProteinManager(models.Manager):
-    def get_by_natural_key(self, accession, type, queue_project, queue_filename):
-        return self.get(fp__accession=accession, type=type, queue__project=queue_project, queue__filename=queue_filename)
+    def get_by_natural_key(self, accession, fasta_type, queue_project, queue_filename):
+        return self.get(fp__accession=accession, fasta_type=fasta_type, queue__project=queue_project, queue__filename=queue_filename)
         
 # table of calculated inferences (as opposed to using peptideshaker inferences)
 class Protein(models.Model):
@@ -20,20 +20,23 @@ class Protein(models.Model):
     saf = models.DecimalField(null=True, max_digits=15, decimal_places=6)
     nsaf = models.DecimalField(null=True, max_digits=15, decimal_places=6)
     validation = models.CharField(max_length=20)
-    type = models.CharField(max_length=20, choices=TYPE_CHOICES)
+    fasta_type = models.CharField(max_length=20, choices=STEP_CHOICES)
     peak_area = models.DecimalField(null=True, max_digits=19, decimal_places=3)
     peak_area_psm = models.IntegerField(null=True)
     class Meta:
-        unique_together = ('queue', 'fp', 'type')
+        unique_together = ('queue', 'fp', 'fasta_type')
+        indexes = [
+            models.Index(fields=['fasta_type']),
+        ]
         
     def natural_key(self):
-        return (self.fp.accession, self.type) + self.queue.natural_key()
+        return (self.fp.accession, self.fasta_type) + self.queue.natural_key()
 
     natural_key.dependencies = ['projects.queue', 'results.fastaprotein']
 
 class PeptideManager(models.Manager):
-    def get_by_natural_key(self, mod_sequence, type, queue_project, queue_filename):
-        return self.get(mod_sequence=mod_sequence, type=type, queue__project=queue_project, queue__filename=queue_filename)
+    def get_by_natural_key(self, mod_sequence, fasta_type, queue_project, queue_filename):
+        return self.get(mod_sequence=mod_sequence, fasta_type=fasta_type, queue__project=queue_project, queue__filename=queue_filename)
         
 # set_null on delete of protein as we may be re-running process_results
 class Peptide(models.Model):
@@ -55,21 +58,21 @@ class Peptide(models.Model):
     fixed_ptm = models.CharField(max_length=255, blank=True)
     val_num_psm = models.IntegerField()
     validation = models.CharField(max_length=20)
-    type = models.CharField(max_length=20, choices=TYPE_CHOICES)
+    fasta_type = models.CharField(max_length=20, choices=STEP_CHOICES)
     peak_area = models.DecimalField(null=True, max_digits=19, decimal_places=3)
     # how many PSMs had a peak area as it may not be the same as val_num_psm
     peak_area_psm = models.IntegerField(null=True)
     class Meta:
-        unique_together = ('queue', 'mod_sequence', 'type')
+        unique_together = ('queue', 'mod_sequence', 'fasta_type')
         
     def natural_key(self):
-        return (self.mod_sequence, self.type) + self.queue.natural_key()
+        return (self.mod_sequence, self.fasta_type) + self.queue.natural_key()
 
     natural_key.dependencies = ['projects.queue']
 
 class PsmManager(models.Manager):
-    def get_by_natural_key(self, type, title, queue_project, queue_filename):
-        return self.get(type=type, title=title, queue__project=queue_project, queue__filename=queue_filename)
+    def get_by_natural_key(self, fasta_type, title, queue_project, queue_filename):
+        return self.get(fasta_type=fasta_type, title=title, queue__project=queue_project, queue__filename=queue_filename)
         
 class Psm(models.Model):
     objects = PsmManager()
@@ -91,11 +94,11 @@ class Psm(models.Model):
     validation = models.CharField(max_length=20)
     confidence = models.DecimalField(max_digits=15, decimal_places=6)
     title = models.CharField(max_length=255)
-    type = models.CharField(max_length=20, choices=TYPE_CHOICES)
+    fasta_type = models.CharField(max_length=20, choices=STEP_CHOICES)
     peak_area = models.DecimalField(null=True, max_digits=19, decimal_places=3)
 
     def natural_key(self):
-        return (self.type, self.title) + self.queue.natural_key()
+        return (self.fasta_type, self.title) + self.queue.natural_key()
         
 class Proteome(models.Model):
     proteome = models.CharField(max_length=20, primary_key=True)
@@ -136,7 +139,7 @@ class PsmRatio(models.Model):
 # and we can use it both for the species page and the summary page
 class SpeciesSummary(models.Model):
     project = models.ForeignKey('projects.Project', on_delete=models.CASCADE)
-    type = models.CharField(max_length=20, choices=TYPE_CHOICES)
+    fasta_type = models.CharField(max_length=20, choices=STEP_CHOICES)
     ppid = models.ForeignKey(
         'results.Proteome', 
         on_delete=models.CASCADE, 
@@ -150,11 +153,11 @@ class SpeciesSummary(models.Model):
     peak_area_psm = models.IntegerField(null=True)
 
     def natural_key(self):
-        return(self.project, self.ppid, self.type)
+        return(self.project, self.ppid, self.fasta_type)
         
 class SpeciesFileSummary(models.Model):
     queue = models.ForeignKey('projects.Queue', on_delete=models.CASCADE)
-    type = models.CharField(max_length=20, choices=TYPE_CHOICES)
+    fasta_type = models.CharField(max_length=20, choices=STEP_CHOICES)
     ppid = models.ForeignKey(
         'results.Proteome', 
         on_delete=models.CASCADE, 
@@ -168,7 +171,7 @@ class SpeciesFileSummary(models.Model):
     peak_area_psm = models.IntegerField(null=True)
  
     def natural_key(self):
-        return(self.type, self.ppid) + self.queue.natural_key()
+        return(self.fasta_type, self.ppid) + self.queue.natural_key()
 
 # just keep tabs on the list of files we are loading onto the website for a project
 class ResultsFiles(models.Model):
