@@ -26,7 +26,7 @@ class QueueQuerySet(models.QuerySet):
                 When(status=Queue.Status.FINISHED_PROT, then=Value(16)),
                 When(status=Queue.Status.FILE_FINISHED, then=Value(17))
                 )
-            )).order_by('-status')
+            )).order_by('-status_order')
             
 class QueueManager(models.Manager):
     def get_by_natural_key(self, project, filename):
@@ -466,6 +466,36 @@ class SearchSetting(models.Model):
     
     def __str__(self):
         return self.project.name
+
+class EngineStatus(models.Model):
+    queue = models.OneToOneField(
+        'projects.Queue', 
+        on_delete=models.CASCADE, 
+    )
+    
+    xtandem_profile = models.BooleanField(default=False)
+    comet_profile = models.BooleanField(default=False)
+    omssa_profile = models.BooleanField(default=False)
+    sage_profile = models.BooleanField(default=False)
+    msgf_profile = models.BooleanField(default=False)
+    myrimatch_profile = models.BooleanField(default=False)
+    metamorpheus_profile = models.BooleanField(default=False)
+    
+    xtandem_proteome = models.BooleanField(default=False)
+    comet_proteome = models.BooleanField(default=False)
+    omssa_proteome = models.BooleanField(default=False)
+    sage_proteome = models.BooleanField(default=False)
+    msgf_proteome = models.BooleanField(default=False)
+    myrimatch_proteome = models.BooleanField(default=False)
+    metamorpheus_proteome = models.BooleanField(default=False)
+    
+    xtandem_tries = models.IntegerField(default=0)
+    comet_tries = models.IntegerField(default=0)
+    omssa_tries = models.IntegerField(default=0)
+    sage_tries = models.IntegerField(default=0)
+    msgf_tries = models.IntegerField(default=0)
+    myrimatch_tries = models.IntegerField(default=0)
+    metamorpheus_tries = models.IntegerField(default=0)
     
 # keep a table of runtimes for each step
 class RunTime(models.Model):

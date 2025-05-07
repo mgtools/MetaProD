@@ -22,7 +22,8 @@ from .models import (
     Reagent,
     Tag,
     MetaData,
-    MetaDataChoice
+    MetaDataChoice,
+    EngineStatus
 )
 
 from .forms import MultiplexLabelForm, MultiplexLabelInlineForm, QueueForm, MetaDataChoiceForm
@@ -43,7 +44,16 @@ class RunTimeInline(admin.TabularInline):
         'reporter_profile', 'mzmine_profile', 'read_results_profile', 'process_results_profile',
         'searchgui_proteome', 'peptideshaker_proteome', 'reporter_proteome', 'mzmine_proteome',
         'read_results_proteome', 'process_results_proteome')
-  
+
+class EngineStatusInline(admin.TabularInline):
+    model = EngineStatus
+    extra = 0
+    max_num = 0
+    can_delete = False
+    readonly_fields = ('comet_profile', 'xtandem_profile', 'msgf_profile', 'omssa_profile', 'metamorpheus_profile', 'myrimatch_profile', 'sage_profile',
+                       'comet_proteome', 'xtandem_proteome', 'msgf_proteome', 'omssa_proteome', 'metamorpheus_proteome', 'myrimatch_proteome', 'sage_proteome')
+    exclude = ('comet_tries', 'xtandem_tries', 'msgf_tries', 'omssa_tries', 'metamorpheus_tries', 'myrimatch_tries', 'sage_tries')
+    
 class ProjectListFilter(admin.SimpleListFilter):
     title = _('Project')
     parameter_name = 'project__name'
@@ -99,7 +109,7 @@ class MetaDataChoiceInline(admin.TabularInline):
         
 class QueueAdmin(admin.ModelAdmin):
 
-    inlines = (RunTimeInline, MetaDataChoiceInline)
+    inlines = (RunTimeInline, EngineStatusInline, MetaDataChoiceInline)
     list_filter = (ProjectListFilter,)
     fieldsets = (
         (None, {

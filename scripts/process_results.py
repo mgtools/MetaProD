@@ -140,7 +140,7 @@ def calculate_nsaf(project, fasta_type):
 def calculate_species_summary(project, fasta_type):
     print("Calculating species summary for %s %s" % (project, fasta_type))
     delete = SpeciesSummary.objects.filter(project__name=project,
-                                           type=fasta_type).delete()
+                                           fasta_type=fasta_type).delete()
                             
     # start with the protein info
     query = (Protein.objects.filter(queue__project__name=project)
@@ -150,7 +150,7 @@ def calculate_species_summary(project, fasta_type):
                             .values('fp__ppid__proteome')
                             .annotate(total_psm=Sum('val_num_psm'), 
                                       total_pep=Sum('val_num_peptide'), 
-                                      total_pro=Count('type'), 
+                                      total_pro=Count('fasta_type'), 
                                       nsaf=Sum('nsaf'),
                                       peak_area=Sum('peak_area'),
                                       peak_area_psm=Sum('peak_area_psm'))
@@ -180,7 +180,7 @@ def calculate_species_file_summary(q_id, fasta_type):
                             .values('fp__ppid__proteome')
                             .annotate(total_psm=Sum('val_num_psm'), 
                                       total_pep=Sum('val_num_peptide'), 
-                                      total_pro=Count('type'), 
+                                      total_pro=Count('fasta_type'), 
                                       nsaf=Sum('nsaf'),
                                       peak_area=Sum('peak_area'),
                                       peak_area_psm=Sum('peak_area_psm'))

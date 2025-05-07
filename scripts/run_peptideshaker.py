@@ -9,7 +9,7 @@ import time
 
 from django.core.exceptions import ObjectDoesNotExist
 
-from projects.models import Setting, Queue, RunTime, SearchSetting
+from projects.models import Setting, Queue, RunTime, SearchSetting, EngineStatus
 
 from .run_command import run_command, write_debug, settings
 
@@ -99,7 +99,74 @@ def run_peptideshaker(queue_id):
         threads = psutil.cpu_count()
     else:
         threads = settings.threads
-     
+    
+    # we nneed to check engine status then determine what engines were completed
+    
+    
+    
+    enginestatus = EngineStatus.objects.get(queue=queue)
+    engines = ""
+    if fasta_type == "profile":
+        if enginestatus.comet_profile == True:
+            engines += os.path.join(settings.data_folder, project, "out", filename, fasta_type, "%s.comet.pep.xml.gz," % filename)
+            
+        if enginestatus.msgf_profile == True:
+            engines += os.path.join(settings.data_folder, project, "out", filename, fasta_type, "%s.msgf.mzid.gz," % filename)
+            
+        if enginestatus.xtandem_profile == True:
+            engines += os.path.join(settings.data_folder, project, "out", filename, fasta_type, "%s.t.xml.gz," % filename)
+            
+        if enginestatus.omssa_profile == True:
+            engines += os.path.join(settings.data_folder, project, "out", filename, fasta_type, "%s.omx.gz," % filename)
+            
+        if enginestatus.myrimatch_profile == True:
+            engines += os.path.join(settings.data_folder, project, "out", filename, fasta_type, "%s.myrimatch.mzid.gz," % filename)
+
+        if enginestatus.metamorpheus_profile == True:
+            engines += os.path.join(settings.data_folder, project, "out", filename, fasta_type, "%s.mzID.gz," % filename)
+
+        if enginestatus.sage_profile == True:
+            engines += os.path.join(settings.data_folder, project, "out", filename, fasta_type, "%s.sage.tsv.gz," % filename)
+            
+    elif fasta_type == "proteome":
+        if enginestatus.comet_proteome == True:
+            engines += os.path.join(settings.data_folder, project, "out", filename, fasta_type, "%s.comet.pep.xml.gz," % filename)
+            
+        if enginestatus.msgf_proteome == True:
+            engines += os.path.join(settings.data_folder, project, "out", filename, fasta_type, "%s.msgf.mzid.gz," % filename)
+            
+        if enginestatus.xtandem_proteome == True:
+            engines += os.path.join(settings.data_folder, project, "out", filename, fasta_type, "%s.t.xml.gz," % filename)
+            
+        if enginestatus.omssa_proteome == True:
+            engines += os.path.join(settings.data_folder, project, "out", filename, fasta_type, "%s.omx.gz," % filename)
+            
+        if enginestatus.myrimatch_proteome == True:
+            engines += os.path.join(settings.data_folder, project, "out", filename, fasta_type, "%s.myrimatch.mzid.gz," % filename)
+
+        if enginestatus.metamorpheus_proteome == True:
+            engines += os.path.join(settings.data_folder, project, "out", filename, fasta_type, "%s.mzID.gz," % filename)
+
+        if enginestatus.sage_proteome == True:
+            engines += os.path.join(settings.data_folder, project, "out", filename, fasta_type, "%s.sage.tsv.gz," % filename)    
+            
+    elif fasta_type == "proteome":
+        return
+    engines = engines[:-1]
+    
+    print(engines)
+
+    if queue.status == Queue.Status.PEPTIDESHAKER_PROF:
+        if searchsetting.custom_fasta == True:
+            fasta_type = "custom"
+            fasta_file = "%s%s%s_%s_concatenated_target_decoy.fasta" % (os.path.join(settings.data_folder, project, "fasta", fasta_type), os.sep, project, fasta_type)     
+        else:
+            fasta_type = "profile"
+            fasta_file = "%s%s%s_%s_concatenated_target_decoy.fasta" % (os.path.join(settings.data_folder, project, "fasta", fasta_type), os.sep, project, fasta_type)
+    elif queue.status == Queue.Status.PEPTIDESHAKER_PROT:
+        fasta_type = "proteome"
+        fasta_file = "%s%s%s_%s_%s_concatenated_target_decoy.fasta" % (os.path.join(settings.data_folder, project, "fasta", fasta_type, filename), os.sep, project, filename, fasta_type)
+        
     # timeout after 8 hours
     write_debug("Starting PeptideShakerCLI: %s" % (os.path.join(settings.data_folder, project, "out", filename, fasta_type, "searchgui_out.zip")), job, project)
     success = run_command(["timeout", "86400", 
@@ -108,12 +175,15 @@ def run_peptideshaker(queue_id):
                             "eu.isas.peptideshaker.cmd.PeptideShakerCLI",
                             "-out", "%s%s%s.psdb" % (os.path.join(settings.data_folder, project, "out", filename, fasta_type), os.sep, filename),
                             "-reference", project,
-                            "-identification_files", "%s" % (os.path.join(settings.data_folder, project, "out", filename, fasta_type, "searchgui_out.zip")),
+                            "-identification_files", engines,
                             "-threads", "%s" % threads,
                             "eu.isas.peptideshaker.cmd.ReportCLI",
                             "-reports", "3", # this has to be generated in the gui other than defaults
                             "-out_reports", "%s" % (os.path.join(settings.data_folder, project, "out", filename, fasta_type)),
-                            "-report_prefix", "ps_"
+                            "-report_prefix", "ps_",
+                            "-id_params", "%s%s%s_%s.par" % (os.path.join(settings.data_folder, project, "out", filename, fasta_type), os.sep, project, fasta_type),
+                            "-fasta_file", "%s" % fasta_file,
+                            "-spectrum_files", "%s.mzML" % (os.path.join(settings.data_folder, project, "out", filename, filename)),
                           ], job, project)
         
     if success == 0 or not os.path.exists(r"%s%s%s.psdb" % (os.path.join(settings.data_folder, project, "out", filename, fasta_type), os.sep, filename)):

@@ -7,7 +7,7 @@ import zipfile
 
 from django.core.exceptions import ObjectDoesNotExist
 
-from projects.models import Setting, Queue, SearchSetting, ModChoice, EnzymeChoice, RunTime
+from projects.models import Setting, Queue, SearchSetting, ModChoice, EnzymeChoice, RunTime, EngineStatus
 
 from .run_command import run_command, write_debug, settings
 
@@ -44,14 +44,14 @@ def run_searchgui(queue_id):
 
     if queue.status == Queue.Status.SEARCHGUI_PROF:
         if searchsetting.custom_fasta == True:
-            type = "custom"
-            fasta_file = "%s%s%s_%s_concatenated_target_decoy.fasta" % (os.path.join(settings.data_folder, project, "fasta", type), os.sep, project, type)     
+            fasta_type = "custom"
+            fasta_file = "%s%s%s_%s_concatenated_target_decoy.fasta" % (os.path.join(settings.data_folder, project, "fasta", fasta_type), os.sep, project, fasta_type)     
         else:
-            type = "profile"
-            fasta_file = "%s%s%s_%s_concatenated_target_decoy.fasta" % (os.path.join(settings.data_folder, project, "fasta", type), os.sep, project, type)
+            fasta_type = "profile"
+            fasta_file = "%s%s%s_%s_concatenated_target_decoy.fasta" % (os.path.join(settings.data_folder, project, "fasta", fasta_type), os.sep, project, fasta_type)
     elif queue.status == Queue.Status.SEARCHGUI_PROT:
-        type = "proteome"
-        fasta_file = "%s%s%s_%s_%s_concatenated_target_decoy.fasta" % (os.path.join(settings.data_folder, project, "fasta", type, filename), os.sep, project, filename, type)
+        fasta_type = "proteome"
+        fasta_file = "%s%s%s_%s_%s_concatenated_target_decoy.fasta" % (os.path.join(settings.data_folder, project, "fasta", fasta_type, filename), os.sep, project, filename, fasta_type)
     
 
 
@@ -60,9 +60,9 @@ def run_searchgui(queue_id):
         return False
         
     if not os.path.exists(fasta_file):
-        write_debug("Missing %s FASTA file for %s." % (type, filename), job, project)
+        write_debug("Missing %s FASTA file for %s." % (fasta_type, filename), job, project)
         return False
-        
+
     mods = searchsetting.mods.all()
     enzymes = searchsetting.enzymes.all()
         
@@ -89,16 +89,16 @@ def run_searchgui(queue_id):
                     os.path.join(install_folder, "temp", project, str(job), "software", "SearchGUI-%s" % settings.searchgui_ver))
     
     # remove the parameter file
-    if os.path.exists("%s%s%s_%s.par" % (os.path.join(settings.data_folder, project, "out", filename, type), os.sep, project, type)):
-        os.remove("%s%s%s_%s.par" % (os.path.join(settings.data_folder, project, "out", filename, type), os.sep, project, type))
+    if os.path.exists("%s%s%s_%s.par" % (os.path.join(settings.data_folder, project, "out", filename, fasta_type), os.sep, project, fasta_type)):
+        os.remove("%s%s%s_%s.par" % (os.path.join(settings.data_folder, project, "out", filename, fasta_type), os.sep, project, fasta_type))
 
     # remove the folder we check results in
-    if os.path.exists(os.path.join(settings.data_folder, project, "out", filename, type, "temp")):
-        shutil.rmtree(os.path.join(settings.data_folder, project, "out", filename, type, "temp"))
+    if os.path.exists(os.path.join(settings.data_folder, project, "out", filename, fasta_type, "temp")):
+        shutil.rmtree(os.path.join(settings.data_folder, project, "out", filename, fasta_type, "temp"))
         
     # remove the old output if it exists
-    if os.path.exists(os.path.join(settings.data_folder, project, "out", filename, type, "searchgui_out.zip")):
-        os.remove(os.path.join(settings.data_folder, project, "out", filename, type, "searchgui_out.zip"))
+    if os.path.exists(os.path.join(settings.data_folder, project, "out", filename, fasta_type, "searchgui_out.zip")):
+        os.remove(os.path.join(settings.data_folder, project, "out", filename, fasta_type, "searchgui_out.zip"))
 
     write_debug("Starting SearchGUI PathSettingsCLI: %s" % (os.path.join(settings.data_folder, project)), job, project)
     success = run_command(["timeout", "86400", 
@@ -122,7 +122,7 @@ def run_searchgui(queue_id):
                "java", "-Xms%s" % settings.memory, "-Xmx%s" % settings.memory, 
                "-cp", os.path.join(install_folder, "temp", project, str(job), "software", "SearchGUI-%s" % settings.searchgui_ver, "SearchGUI-%s.jar" % settings.searchgui_ver),
                "eu.isas.searchgui.cmd.IdentificationParametersCLI",
-               "-out", "%s%s%s_%s.par" % (os.path.join(settings.data_folder, project, "out", filename, type), os.sep, project, type),
+               "-out", "%s%s%s_%s.par" % (os.path.join(settings.data_folder, project, "out", filename, fasta_type), os.sep, project, fasta_type),
                "-min_charge", "%s" % searchsetting.min_charge,
                "-max_charge", "%s" % searchsetting.max_charge,
                "-import_peptide_length_min", "%s" % searchsetting.min_peptide_length, # min peptide length
@@ -174,23 +174,23 @@ def run_searchgui(queue_id):
     # timeout after 10 mins
     success = run_command(command, job, project)
     
-    if success == 0 or not os.path.exists("%s%s%s_%s.par" % (os.path.join(settings.data_folder, project, "out", filename, type), os.sep, project, type)):
+    if success == 0 or not os.path.exists("%s%s%s_%s.par" % (os.path.join(settings.data_folder, project, "out", filename, fasta_type), os.sep, project, fasta_type)):
         write_debug("Missing searchgui PAR file.", job, project)
         return False
     # this is a workaround for the latest searchgui
     else:
         if not os.path.exists(os.path.join(install_folder, "temp", project, str(job), "identification_parameters_4")):
             os.makedirs(os.path.join(install_folder, "temp", project, str(job), "identification_parameters_4"))
-        if not os.path.exists("%s%s%s_%s.par" % (os.path.join(settings.install_folder, "temp", project, str(job), "identification_parameters_4"), os.sep, project, type)):
-            shutil.copy("%s%s%s_%s.par" % (os.path.join(settings.data_folder, project, "out", filename, type), os.sep, project, type),
-                        "%s%s%s_%s.par" % (os.path.join(settings.install_folder, "temp", project, str(job), "identification_parameters_4"), os.sep, project, type))
+        if not os.path.exists("%s%s%s_%s.par" % (os.path.join(settings.install_folder, "temp", project, str(job), "identification_parameters_4"), os.sep, project, fasta_type)):
+            shutil.copy("%s%s%s_%s.par" % (os.path.join(settings.data_folder, project, "out", filename, fasta_type), os.sep, project, fasta_type),
+                        "%s%s%s_%s.par" % (os.path.join(settings.install_folder, "temp", project, str(job), "identification_parameters_4"), os.sep, project, fasta_type))
     if settings.threads == -1:
         threads = psutil.cpu_count()
     else:
         threads = settings.threads
         
     write_debug("Starting searchgui: %s" % (filename), job, project)            
-    if type == "profile" or type == "custom":
+    if fasta_type == "profile" or fasta_type == "custom":
         xtandem = int(searchsetting.xtandem_profile)
         msgf = int(searchsetting.msgf_profile)
         comet = int(searchsetting.comet_profile)
@@ -219,111 +219,235 @@ def run_searchgui(queue_id):
     if (xtandem == 0) and (msgf == 0) and (comet == 0) and (omssa == 0) and (metamorpheus == 0) and (myrimatch == 0) and (sage == 0):
         write_debug("No search engines are selected. Make sure at least one search engine is selected for both profile and proteome steps.", job, project)
         return False
-        
-    success = run_command(["timeout", "172800", 
-                            "java", "-Xms%s" % settings.memory, "-Xmx%s" % settings.memory, 
-                            "-cp", os.path.join(install_folder, "temp", project, str(job), "software", "SearchGUI-%s" % settings.searchgui_ver, "SearchGUI-%s.jar" % settings.searchgui_ver), 
-                            "eu.isas.searchgui.cmd.SearchCLI",
-                            "-spectrum_files", "%s.mzML" % (os.path.join(settings.data_folder, project, "out", filename, filename)),
-                            "-output_folder", "%s" % (os.path.join(settings.data_folder, project, "out", filename, type)),
-                            "-id_params", "%s%s%s_%s.par" % (os.path.join(settings.data_folder, project, "out", filename, type), os.sep, project, type),
-                            "-fasta_file", "%s" % fasta_file,
-                            "-xtandem", "%s" % xtandem,
-                            "-msgf", "%s" % msgf,
-                            "-omssa", "%s" % omssa,
-                            "-comet", "%s" % comet,
-                            "-meta_morpheus", "%s" % metamorpheus,
-                            "-myrimatch", "%s" % myrimatch,
-                            "-ms_amanda", "%s" % ms_amanda,
-                            "-sage", "%s" % sage,
-                            "-tide", "%s" % tide,
-                            "-output_option", "0",
-                            "-output_data", "1",
-                            "-output_date", "0",
-                            "-threads", "%s" % threads
-                          ], job, project)
 
-    # need database update here to change the attempt count and status
-    if success == 0 or not os.path.exists(r"%s" % (os.path.join(settings.data_folder, project, "out", filename, type, "searchgui_out.zip"))):
-        write_debug("missing searchgui output: %s" % (os.path.join(settings.data_folder, project, "out", filename, type, "searchgui_out.zip")), job, project)
-        return False
+    # run the search
+    # check for success
+    # if failure, try that engine again until max retries
+    # update status table with results
     
-    # to verify that the search engines work, we'll have to unzip the searchgui file and look
-    write_debug("Verifying correct search engine outputs.", job, project)
-    if not os.path.exists(os.path.join(settings.data_folder, project, "out", filename, type, "temp")):
-        os.makedirs(os.path.join(settings.data_folder, project, "out", filename, type, "temp"))
-        
-    with (zipfile.ZipFile(os.path.join(settings.data_folder, project, "out", 
-                          filename, type, "searchgui_out.zip"),"r")) as zip_ref:
-        zip_ref.extractall(os.path.join(settings.data_folder, project, "out", 
-                                        filename, type, "temp"))
+    enginestatus = EngineStatus.objects.get(queue=queue)
+    enginestatus.comet_tries = 0
+    enginestatus.xtandem_tries = 0
+    enginestatus.omssa_tries = 0
+    enginestatus.msgf_tries = 0
+    enginestatus.myrimatch_tries = 0
+    enginestatus.metamorpheus_tries = 0
+    enginestatus.sage_tries = 0
+    if fasta_type == "profile":
+        enginestatus.comet_profile = False
+        enginestatus.msgf_profile = False
+        enginestatus.xtandem_profile = False
+        enginestatus.xtandem_profile = False
+        enginestatus.myrimatch_profile = False
+        enginestatus.metamorpheus_profile = False
+        enginestatus.sage_profile = False
+    elif fasta_type == "proteome":
+        enginestatus.comet_proteome = False
+        enginestatus.msgf_proteome = False
+        enginestatus.xtandem_proteome = False
+        enginestatus.xtandem_proteome = False
+        enginestatus.myrimatch_proteome = False
+        enginestatus.metamorpheus_proteome = False
+        enginestatus.sage_proteome = False    
+    
+    enginestatus.save()
+    
+    def run_search(**engine):
+        success = run_command(["timeout", "172800", 
+                                "java", "-Xms%s" % settings.memory, "-Xmx%s" % settings.memory, 
+                                "-cp", os.path.join(install_folder, "temp", project, str(job), "software", "SearchGUI-%s" % settings.searchgui_ver, "SearchGUI-%s.jar" % settings.searchgui_ver), 
+                                "eu.isas.searchgui.cmd.SearchCLI",
+                                "-spectrum_files", "%s.mzML" % (os.path.join(settings.data_folder, project, "out", filename, filename)),
+                                "-output_folder", "%s" % (os.path.join(settings.data_folder, project, "out", filename, fasta_type)),
+                                "-id_params", "%s%s%s_%s.par" % (os.path.join(settings.data_folder, project, "out", filename, fasta_type), os.sep, project, fasta_type),
+                                "-fasta_file", "%s" % fasta_file,
+                                "-xtandem", "%s" % engine['xtandem'],
+                                "-msgf", "%s" % engine['msgf'],
+                                "-omssa", "%s" % engine['omssa'],
+                                "-comet", "%s" % engine['comet'],
+                                "-meta_morpheus", "%s" % engine['metamorpheus'],
+                                "-myrimatch", "%s" % engine['myrimatch'],
+                                "-ms_amanda", "%s" % engine['ms_amanda'],
+                                "-sage", "%s" % engine['sage'],
+                                "-tide", "%s" % engine['tide'],
+                                "-output_option", "3",
+                                "-output_data", "0",
+                                "-output_date", "0",
+                                "-threads", "%s" % threads
+                            ], job, project)
+                            
+        if (engine['comet'] == 1):
+            if not os.path.exists(
+                os.path.join(settings.data_folder, project, "out", filename, 
+                    fasta_type, "%s.comet.pep.xml.gz" % filename)
+            ):
+                write_debug("Missing Comet output from run_searchgui.", 
+                    job, project)
+                enginestatus.comet_tries += 1
+                enginestatus.save()
+                
+                if enginestatus.comet_tries < settings.max_retries:
+                    run_search(xtandem=0, msgf=0, comet=1, omssa=0, metamorpheus=0, myrimatch=0, sage=0, ms_amanda=0, tide=0)
+                    
+            else:
+                enginestatus.comet_tries = 0
+                if fasta_type == "profile":                
+                    enginestatus.comet_profile = True
+                elif fasta_type == "proteome":
+                    enginestatus.comet_proteome = True
+                enginestatus.save()
 
-    if (msgf == 1):
-        if not os.path.exists(
-            os.path.join(settings.data_folder, project, "out", filename, 
-                type, "temp", "%s.msgf.mzid.gz" % filename)
-        ):
-            write_debug("Missing MSGF output from run_searchgui.", 
-                job, project)
-            return False
-    if (comet == 1):
-        if not os.path.exists(
-            os.path.join(settings.data_folder, project, "out", filename, 
-            type, "temp", "%s.comet.pep.xml.gz" % filename)
-        ):
-            write_debug("Missing Comet output from run_searchgui.", 
-                job, project)
-            return False
-    if (omssa == 1):
-        if not os.path.exists(
-            os.path.join(settings.data_folder, project, "out", filename, 
-            type, "temp", "%s.omx.gz" % filename)
-        ):
-            write_debug("Missing OMSSA output from run_searchgui.", 
-                job, project)
-            return False
-    if (xtandem == 1):
-        if not os.path.exists(
-            os.path.join(settings.data_folder, project, "out", filename, 
-            type, "temp", "%s.t.xml.gz" % filename)
-        ):
-            write_debug("Missing XTandem output from run_searchgui.", 
-                job, project)
-            return False
-    if (myrimatch == 1):
-        if not os.path.exists(
-            os.path.join(settings.data_folder, project, "out", filename, 
-            type, "temp", "%s.myrimatch.mzid.gz" % filename)
-        ):
-            write_debug("Missing MyriMatch output from run_searchgui.", 
-                job, project)
-            return False
-    if (metamorpheus == 1):
-        if not os.path.exists(
-            os.path.join(settings.data_folder, project, "out", filename, 
-            type, "temp", "%s.mzID.gz" % filename)
-        ):
-            write_debug("Missing MetaMorpheus output from run_searchgui.", 
-                job, project)
-            return False
-    if (sage == 1):
-        if not os.path.exists(
-            os.path.join(settings.data_folder, project, "out", filename,
-            type, "temp", "%s.sage.tsv.gz" % filename)
-        ):
-            write_debug("Missing Sage output from run_searchgui.",
-                job, project)
-            return False
-            
-    if os.path.exists(os.path.join(settings.data_folder, project, "out", filename, type, "temp")):
-        shutil.rmtree(os.path.join(settings.data_folder, project, "out", filename, type, "temp"))
-    
+        if (engine['msgf'] == 1):
+            if not os.path.exists(
+                os.path.join(settings.data_folder, project, "out", filename, 
+                    fasta_type, "%s.msgf.mzid.gz" % filename)
+            ):
+                write_debug("Missing MSGF+ output from run_searchgui.", 
+                    job, project)
+                enginestatus.msgf_tries += 1
+                enginestatus.save()
+                
+                if enginestatus.msgf_tries < settings.max_retries:
+                    run_search(xtandem=0, msgf=1, comet=0, omssa=0, metamorpheus=0, myrimatch=0, sage=0, ms_amanda=0, tide=0)
+                    
+            else:
+                enginestatus.msgf_tries = 0
+                if fasta_type == "profile":                
+                    enginestatus.msgf_profile = True
+                elif fasta_type == "proteome":
+                    enginestatus.msgf_proteome = True                
+                enginestatus.save()
+                
+ 
+        if (engine['xtandem'] == 1):
+            if not os.path.exists(
+                os.path.join(settings.data_folder, project, "out", filename, 
+                    fasta_type, "%s.t.xml.gz" % filename)
+            ):
+                write_debug("Missing XTandem output from run_searchgui.", 
+                    job, project)
+                enginestatus.xtandem_tries += 1
+                enginestatus.save()
+                
+                if enginestatus.xtandem_tries < settings.max_retries:
+                    run_search(xtandem=1, msgf=0, comet=0, omssa=0, metamorpheus=0, myrimatch=0, sage=0, ms_amanda=0, tide=0)
+                    
+            else:
+                enginestatus.xtandem_tries = 0
+                if fasta_type == "profile":                
+                    enginestatus.xtandem_profile = True
+                elif fasta_type == "proteome":
+                    enginestatus.xtandem_proteome = True
+                enginestatus.save()
+ 
+        if (engine['omssa'] == 1):
+            if not os.path.exists(
+                os.path.join(settings.data_folder, project, "out", filename, 
+                    fasta_type, "%s.omx.gz" % filename)
+            ):
+                write_debug("Missing OMSSA output from run_searchgui.", 
+                    job, project)
+                enginestatus.omssa_tries += 1
+                enginestatus.save()
+                
+                if enginestatus.omssa_tries < settings.max_retries:
+                    run_search(xtandem=0, msgf=0, comet=0, omssa=1, metamorpheus=0, myrimatch=0, sage=0, ms_amanda=0, tide=0)
+                    
+            else:
+                enginestatus.omssa_tries = 0
+                if fasta_type == "profile":                
+                    enginestatus.omssa_profile = True
+                elif fasta_type == "proteome":
+                    enginestatus.omssa_proteome = True
+                enginestatus.save()
+
+        if (engine['myrimatch'] == 1):
+            if not os.path.exists(
+                os.path.join(settings.data_folder, project, "out", filename, 
+                    fasta_type, "%s.myrimatch.mzid.gz" % filename)
+            ):
+                write_debug("Missing MyriMatch output from run_searchgui.", 
+                    job, project)
+                enginestatus.myrimatch_tries += 1
+                enginestatus.save()
+                
+                if enginestatus.myrimatch_tries < settings.max_retries:
+                    run_search(xtandem=0, msgf=0, comet=0, omssa=0, metamorpheus=0, myrimatch=1, sage=0, ms_amanda=0, tide=0)
+                    
+            else:
+                enginestatus.myrimatch_tries = 0
+                if fasta_type == "profile":
+                    enginestatus.myrimatch_profile = True
+                elif fasta_type == "proteome":
+                    enginestatus.myrimatch_proteome = True
+                enginestatus.save()
+
+        if (engine['metamorpheus'] == 1):
+            if not os.path.exists(
+                os.path.join(settings.data_folder, project, "out", filename, 
+                    fasta_type, "%s.mzID.gz" % filename)
+            ):
+                write_debug("Missing Metamorpheus output from run_searchgui.", 
+                    job, project)
+                enginestatus.metamorpheus_tries += 1
+                enginestatus.save()
+                
+                if enginestatus.metamorpheus_tries < settings.max_retries:
+                    run_search(xtandem=0, msgf=0, comet=0, omssa=0, metamorpheus=1, myrimatch=0, sage=0, ms_amanda=0, tide=0)
+                    
+            else:
+                enginestatus.metamorpheus_tries = 0
+                if fasta_type == "profile":                
+                    enginestatus.metamorpheus_profile = True
+                elif fasta_type == "proteome":
+                    enginestatus.metamorpheus_proteome = True
+                enginestatus.save()
+
+        if (engine['sage'] == 1):
+            if not os.path.exists(
+                os.path.join(settings.data_folder, project, "out", filename, 
+                    fasta_type, "%s.sage.tsv.gz" % filename)
+            ):
+                write_debug("Missing Sage output from run_searchgui.", 
+                    job, project)
+                enginestatus.sage_tries += 1
+                enginestatus.save()
+                
+                if enginestatus.sage_tries < settings.max_retries:
+                    run_search(xtandem=0, msgf=0, comet=0, omssa=0, metamorpheus=0, myrimatch=0, sage=1, ms_amanda=0, tide=0)
+                    
+            else:
+                enginestatus.sage_tries = 0
+                enginestatus.sage_profile=True
+                enginestatus.save()
+                
+    if xtandem == 1:
+        run_search(xtandem=1, msgf=0, comet=0, omssa=0, metamorpheus=0, myrimatch=0, sage=0, ms_amanda=0, tide=0)
+        
+    if msgf == 1:
+        run_search(xtandem=0, msgf=1, comet=0, omssa=0, metamorpheus=0, myrimatch=0, sage=0, ms_amanda=0, tide=0)
+        
+    if comet == 1:
+        run_search(xtandem=0, msgf=0, comet=1, omssa=0, metamorpheus=0, myrimatch=0, sage=0, ms_amanda=0, tide=0)
+        
+    if omssa == 1:
+        run_search(xtandem=0, msgf=0, comet=0, omssa=1, metamorpheus=0, myrimatch=0, sage=0, ms_amanda=0, tide=0)
+        
+    if metamorpheus == 1:
+        run_search(xtandem=0, msgf=0, comet=0, omssa=0, metamorpheus=1, myrimatch=0, sage=0, ms_amanda=0, tide=0)
+        
+    if myrimatch == 1:
+        run_search(xtandem=0, msgf=0, comet=0, omssa=0, metamorpheus=0, myrimatch=1, sage=0, ms_amanda=0, tide=0)
+        
+    if sage == 1:
+        run_search(xtandem=0, msgf=0, comet=0, omssa=0, metamorpheus=0, myrimatch=0, sage=1, ms_amanda=0, tide=0)
+
     end = time.time()
     runtime = end-start
     runtimex = RunTime.objects.get(queue=queue)
-    if type == 'profile' or type == 'custom':
+    if fasta_type == 'profile' or fasta_type == 'custom':
         runtimex.searchgui_profile = runtime
-    elif type == 'proteome':
+    elif fasta_type == 'proteome':
         runtimex.searchgui_proteome = runtime
     runtimex.save()
     

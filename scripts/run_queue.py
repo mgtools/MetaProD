@@ -6,7 +6,7 @@ from django.utils import timezone
 from django.core.exceptions import ObjectDoesNotExist
 
 from projects.models import Queue, Project, Setting, SearchSetting
-from projects.models import RunTime
+from projects.models import RunTime, EngineStatus
 from results.models import Protein, Peptide, Psm
 from results.models import PsmRatio, SpeciesSummary, SpeciesFileSummary
 
@@ -322,9 +322,14 @@ def run_queue(project, job):
             delete = PsmRatio.objects.filter(psm__queue=queue).delete()
             delete = RunTime.objects.filter(queue=queue).delete()
             delete = SpeciesFileSummary.objects.filter(queue=queue).delete()
+            delete = EngineStatus.objects.filter(queue=queue).delete()
             # create the runtimex table
             runtimex = RunTime(queue=queue)
             runtimex.save()
+            
+            # create the enginestatus table
+            enginestatus = EngineStatus(queue=queue)
+            enginestatus.save()
             
             if os.path.exists(os.path.join(settings.data_folder, project, "out", filename)):
                 shutil.rmtree(os.path.join(settings.data_folder, project, "out", filename))

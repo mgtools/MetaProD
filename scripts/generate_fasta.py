@@ -26,12 +26,12 @@ from .load_proteomes import load_proteomes
 def run(*args):
     parser = argparse.ArgumentParser()
     parser.add_argument('project_name', type=str)
-    parser.add_argument('type', choices=['profile', 'proteome'])
+    parser.add_argument('fasta_type', choices=['profile', 'proteome'])
     args2 = parser.parse_args(args)
     project = args2.project_name
-    type = args2.type
+    fasta_type = args2.fasta_type
 
-    generate_fasta(project, type)
+    generate_fasta(project, fasta_type)
 
 # some uniprot code to support the new website
 # kept together so if it changes, it's easier to update
@@ -58,8 +58,8 @@ def get_batch(batch_url):
         batch_url = get_next_link(response.headers)
 # end uniprot code
 
-def generate_fasta(project, type):
-    write_log("Starting generate_fasta for %s %s." % (project, type), "fasta", project)
+def generate_fasta(project, fasta_type):
+    write_log("Starting generate_fasta for %s %s." % (project, fasta_type), "fasta", project)
 
     try:
         searchsetting=SearchSetting.objects.get(project=project)
@@ -73,11 +73,11 @@ def generate_fasta(project, type):
         return 0
 
     if searchsetting.custom_fasta == True:
-        type = "custom"
+        fasta_type = "custom"
         write_log("Project is set to use a custom FASTA.", "fasta", project)
         
     samples = {}
-    if type == "proteome":
+    if fasta_type == "proteome":
         write_log("Including proteomes with at least %s proteins." % (searchsetting.profile_include_above), "fasta", project)
         write_log("Excluding proteomes with fewer than %s proteins." % (searchsetting.profile_exclude_below), "fasta", project)   
     
@@ -133,7 +133,7 @@ def generate_fasta(project, type):
             generate_proteome_fasta(project, files, 0)
             # we generate the FASTA for 1 file and copy it to others
             
-    elif type == "profile":
+    elif fasta_type == "profile":
         # move crap to somewhere accessible without project
         if os.path.exists(os.path.join(os.getcwd(), "scripts", "crap.fasta")):
             if os.path.exists(os.path.join(settings.install_folder, "fasta", "crap.fasta")):
@@ -150,7 +150,7 @@ def generate_fasta(project, type):
             write_log("Missing FASTA file.", "fasta", project)
             write_log("Failed to generate profile FASTA for %s." % (project), "fasta", project)
     
-    elif type == "custom":
+    elif fasta_type == "custom":
         # move crap to somewhere accessible without project
         if os.path.exists(os.path.join(os.getcwd(), "scripts", "crap.fasta")):
             if os.path.exists(os.path.join(settings.install_folder, "fasta", "crap.fasta")):
@@ -180,7 +180,7 @@ def generate_proteome_fasta(project, filenames, have_sample):
     banned_species = []
     proteomes = []  
     # these are the proteomes to exclude based on too few proteins
-    query_s = (SpeciesFileSummary.objects.filter(type='profile')
+    query_s = (SpeciesFileSummary.objects.filter(fasta_type='profile')
                                          .filter(queue__filename__in=filenames)
                                          .filter(queue__project=project)
                                          .exclude(ppid_id=0)
@@ -192,7 +192,7 @@ def generate_proteome_fasta(project, filenames, have_sample):
     banned_species = list(query_s)
    
     # sum of all bacterial nsaf for the files being queried
-    query_t = (Protein.objects.filter(type="profile")
+    query_t = (Protein.objects.filter(fasta_type="profile")
                               .filter(queue__filename__in=filenames)
                               .filter(queue__project=project)
                               .exclude(fp__ppid__proteome='0')
@@ -203,7 +203,7 @@ def generate_proteome_fasta(project, filenames, have_sample):
 
     if not total is None:
         total = float(total) * float(searchsetting.profile_threshold / 100)
-        query = (Protein.objects.filter(type="profile")
+        query = (Protein.objects.filter(fasta_type="profile")
                                 .filter(queue__filename__in=filenames)
                                 .filter(queue__project=project)
                                 .exclude(fp__ppid__proteome='0')
@@ -236,7 +236,7 @@ def generate_proteome_fasta(project, filenames, have_sample):
         
         # so now we have to check again to look for species that weren't in
         # the proteomes yet but that have proteins above the threshold
-        query_s = (SpeciesFileSummary.objects.filter(type='profile')
+        query_s = (SpeciesFileSummary.objects.filter(fasta_type='profile')
                                              .filter(queue__filename__in=filenames)
                                              .filter(queue__project=project)
                                              .exclude(ppid_id=0)
