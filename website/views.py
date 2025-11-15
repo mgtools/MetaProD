@@ -192,7 +192,7 @@ def summary(request, project):
         proteins_cust = (
             Protein.objects.filter(
                 queue__project__name=project, 
-                type='custom', 
+                fasta_type='custom', 
                 queue__id=file['id']
             ).count()
         )
@@ -200,7 +200,7 @@ def summary(request, project):
         peptides_cust = (
             Peptide.objects.filter(
                 queue__project__name=project, 
-                type='custom', 
+                fasta_type='custom', 
                 queue__id=file['id']
             ).count()
         )
@@ -208,7 +208,7 @@ def summary(request, project):
         psms_cust = (
             Psm.objects.filter(
                 queue__project__name=project, 
-                type='custom', 
+                fasta_type='custom', 
                 queue__id=file['id']
             ).count()
         )    
@@ -220,7 +220,7 @@ def summary(request, project):
         proteins_prof = (
             Protein.objects.filter(
                 queue__project__name=project, 
-                type='profile', 
+                fasta_type='profile', 
                 queue__id=file['id']
             ).count()
         )
@@ -228,7 +228,7 @@ def summary(request, project):
         peptides_prof = (
             Peptide.objects.filter(
                 queue__project__name=project, 
-                type='profile', 
+                fasta_type='profile', 
                 queue__id=file['id']
             ).count()
         )
@@ -236,7 +236,7 @@ def summary(request, project):
         psms_prof = (
             Psm.objects.filter(
                 queue__project__name=project, 
-                type='profile', 
+                fasta_type='profile', 
                 queue__id=file['id']
             ).count()
         )
@@ -248,7 +248,7 @@ def summary(request, project):
         proteins_prot = (
             Protein.objects.filter(
                 queue__project__name=project, 
-                type='proteome', 
+                fasta_type='proteome', 
                 queue__id=file['id']
             ).count()
         )
@@ -256,7 +256,7 @@ def summary(request, project):
         peptides_prot = (
             Peptide.objects.filter(
                 queue__project__name=project, 
-                type='proteome', 
+                fasta_type='proteome', 
                 queue__id=file['id']
             ).count()
         )
@@ -264,7 +264,7 @@ def summary(request, project):
         psms_prot = (
             Psm.objects.filter( 
                 queue__project__name=project, 
-                type='proteome', 
+                fasta_type='proteome', 
                 queue__id=file['id']
             ).count()
         )
@@ -303,28 +303,28 @@ def summary(request, project):
     
     # omit this for custom because it's not necessarily possible
     top_x_ppid_psm_profile = (
-        Protein.objects.filter(type='profile')
+        Protein.objects.filter(fasta_type='profile')
                        .filter(queue__project__name=project)
                        .values('fp__ppid__proteome', 'fp__ppid__organism')
                        .annotate(total=Sum('val_num_psm'))
                        .order_by('-total')[:10]
     )
     top_x_ppid_psm_proteome = (
-        Protein.objects.filter(type='proteome')
+        Protein.objects.filter(fasta_type='proteome')
                        .filter(queue__project__name=project)
                        .values('fp__ppid__proteome', 'fp__ppid__organism')
                        .annotate(total=Sum('val_num_psm'))
                        .order_by('-total')[:10]
     )                                             
     top_x_ppid_nsaf_profile = (
-        Protein.objects.filter(type='profile')
+        Protein.objects.filter(fasta_type='profile')
                        .filter(queue__project__name=project)
                        .values('fp__ppid__proteome', 'fp__ppid__organism')
                        .annotate(total=Sum('nsaf'))
                        .order_by('-total')[:10]
     )
     top_x_ppid_nsaf_proteome = (
-        Protein.objects.filter(type='proteome')
+        Protein.objects.filter(fasta_type='proteome')
                        .filter(queue__project__name=project)
                        .values('fp__ppid__proteome', 'fp__ppid__organism')
                        .annotate(total=Sum('nsaf'))
@@ -344,3 +344,23 @@ def summary(request, project):
          'totals': totals_dict
         }
     )
+    
+def graphs(request, project):
+    # we can load the species summary and use that and generate species graphs by nsaf
+
+    species_dict = {}
+    ss = SpeciesSummary.objects.filter(
+        project=project,
+        fasta_type='proteome'
+    ).values(
+        'ppid__organism',
+        'nsaf'
+    )
+    for entry in ss:
+       species_dict[entry['ppid__organism']] = entry['nsaf']
+       
+    return render(request, 
+        'website/graphs.html',
+        {'species_dict': species_dict,
+        }
+    )    

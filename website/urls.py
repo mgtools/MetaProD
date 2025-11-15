@@ -94,6 +94,7 @@ urlpatterns = [
     path('diffprotein/', views.DiffProteinListView.as_view(), name='diffprotein_list'),
     path('files/', views.FileListView.as_view(), name='file_list'),
     path('summary/<str:project>/', views.summary, name='summary'),
+    path('graphs/<str:project>/', views.graphs, name='graphs'),
     path('file_summary/', views.FileSummaryView.as_view(), name='file_summary'),
     path('species/', views.SpeciesListView.as_view(), name='species_list'),
     path('help', views.help, name='help'),

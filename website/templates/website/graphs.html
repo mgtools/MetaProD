@@ -1,0 +1,24 @@
+{% extends "website/header.html" %}
+{% load render_table from django_tables2 %}
+{% load export_url from django_tables2 %}
+{% load crispy_forms_tags %}
+{% load spurl %}
+{% block title %}Graphs{% endblock %}
+{% block content %}
+<div class="table-container">
+<table class="table table-hover">
+<thead>
+<tr>
+<th>Species</th>
+<th>NSAF</th>
+</tr>
+</thead>
+<tbody>
+{% for key, value in species_dict.items %}
+<tr>
+<td>{{ key }} </td><td> {{ value }}
+</tr>
+{% endfor %}
+</tbody>
+</table>
+{% endblock %}
